@@ -14,12 +14,14 @@
 mod curve;
 mod error;
 mod knot;
+mod resample;
 mod spline;
 mod validate;
 
 pub use curve::Curve;
 pub use error::CurveError;
 pub use knot::Knot;
+pub use resample::resample;
 pub use spline::{Segment, Spline};
 pub use validate::{advances_in_x, edit_keeps_order, within_slope_cap};
 

@@ -26,3 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resume drawing: `Curve::extend` appends a stroke that joins C¹ (pinning the
   join to the previous ending slope); `Spline::start_slope`/`end_slope` expose
   the boundary slopes.
+- Resample: `resample` thins dense, noisy pen samples to a minimal knot set via
+  Ramer–Douglas–Peucker (curvature-aware), so the spline stays faithful without
+  overfitting jitter.
