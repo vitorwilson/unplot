@@ -1,4 +1,4 @@
-import type { FittedCurve } from "./fit";
+import type { FittedCurve, Knot } from "./fit";
 import { StrokeBuilder } from "./stroke";
 import type { CanvasColors } from "./theme";
 import {
@@ -9,6 +9,7 @@ import {
 } from "./viewport";
 
 const STROKE_WIDTH = 2;
+const KNOT_RADIUS = 4;
 
 /** How the surrounding app fits a drawn stroke through the Rust core: a fresh
  * curve, or a C¹ resume of the existing one. */
@@ -47,12 +48,13 @@ export function installDrawing(
 
   const redraw = (): void => {
     redrawBackground();
-    const curveColor = colorsOf().curve;
+    const colors = colorsOf();
     if (curve) {
-      drawPolyline(ctx, vp, curve.polyline, curveColor);
+      drawPolyline(ctx, vp, curve.polyline, colors.curve);
+      drawKnots(ctx, vp, curve.knots, colors.handle);
     }
     if (active) {
-      drawPolyline(ctx, vp, active.samples(), curveColor);
+      drawPolyline(ctx, vp, active.samples(), colors.curve);
     }
   };
 
@@ -122,4 +124,20 @@ function drawPolyline(
     ctx.lineTo(screen.x, screen.y);
   }
   ctx.stroke();
+}
+
+/** Draw a small filled dot at each knot — the grab targets for editing. */
+function drawKnots(
+  ctx: CanvasRenderingContext2D,
+  vp: Viewport,
+  knots: readonly Knot[],
+  color: string,
+): void {
+  ctx.fillStyle = color;
+  for (const knot of knots) {
+    const screen = worldToScreen(vp, knot);
+    ctx.beginPath();
+    ctx.arc(screen.x, screen.y, KNOT_RADIUS, 0, 2 * Math.PI);
+    ctx.fill();
+  }
 }

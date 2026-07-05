@@ -1,11 +1,30 @@
 use curve_engine::{Curve, Knot};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-/// The result of fitting a drawn stroke: the resampled knots and a dense
+/// A knot as exchanged with the frontend: position plus an optional user-set
+/// tangent (slope). `None` means the fitter chooses the slope; `Some` is a
+/// dragged tangent handle (Phase 3).
+#[derive(Serialize, Deserialize, Clone, Copy)]
+struct KnotDto {
+    x: f64,
+    y: f64,
+    tangent: Option<f64>,
+}
+
+impl KnotDto {
+    fn to_knot(self) -> Knot {
+        match self.tangent {
+            Some(slope) => Knot::with_tangent(self.x, self.y, slope),
+            None => Knot::new(self.x, self.y),
+        }
+    }
+}
+
+/// The result of fitting a curve: its knots (for editing/resume) and a dense
 /// polyline of the smooth spline, both in world coordinates.
 #[derive(Serialize)]
 struct FittedCurve {
-    knots: Vec<[f64; 2]>,
+    knots: Vec<KnotDto>,
     polyline: Vec<[f64; 2]>,
 }
 
@@ -34,14 +53,22 @@ fn fit_curve(samples: Vec<[f64; 2]>, tolerance: f64) -> Result<FittedCurve, Stri
 /// stroke does not continue strictly to the right of the existing curve.
 #[tauri::command]
 fn extend_curve(
-    existing: Vec<[f64; 2]>,
+    existing: Vec<KnotDto>,
     samples: Vec<[f64; 2]>,
     tolerance: f64,
 ) -> Result<FittedCurve, String> {
-    let base_knots: Vec<Knot> = existing.iter().map(|&[x, y]| Knot::new(x, y)).collect();
-    let base = Curve::new(base_knots).map_err(|error| error.to_string())?;
+    let base = Curve::new(to_knots(&existing)).map_err(|error| error.to_string())?;
     let new_knots = curve_engine::resample(&pairs(&samples), tolerance);
     let curve = base.extend(new_knots).map_err(|error| error.to_string())?;
+    Ok(render(&curve))
+}
+
+/// Re-fit an edited set of knots (dragged points or tangent handles) without
+/// resampling — the editing workhorse. Errors if the edit is not a valid
+/// function (e.g. a knot dragged past a neighbor's x).
+#[tauri::command]
+fn refit_curve(knots: Vec<KnotDto>) -> Result<FittedCurve, String> {
+    let curve = Curve::new(to_knots(&knots)).map_err(|error| error.to_string())?;
     Ok(render(&curve))
 }
 
@@ -49,11 +76,23 @@ fn pairs(samples: &[[f64; 2]]) -> Vec<(f64, f64)> {
     samples.iter().map(|&[x, y]| (x, y)).collect()
 }
 
-/// Serialize a fitted curve for the frontend: its knots (for a later resume) and
-/// a dense polyline of its smooth spline (for rendering).
+fn to_knots(dtos: &[KnotDto]) -> Vec<Knot> {
+    dtos.iter().map(|dto| dto.to_knot()).collect()
+}
+
+/// Serialize a fitted curve for the frontend: its knots (positions + any user
+/// tangents, for editing/resume) and a dense polyline of its smooth spline.
 fn render(curve: &Curve) -> FittedCurve {
     FittedCurve {
-        knots: curve.knots().iter().map(|knot| [knot.x, knot.y]).collect(),
+        knots: curve
+            .knots()
+            .iter()
+            .map(|knot| KnotDto {
+                x: knot.x,
+                y: knot.y,
+                tangent: knot.tangent,
+            })
+            .collect(),
         polyline: curve
             .fit()
             .polyline(POLYLINE_POINTS)
@@ -79,7 +118,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             engine_version,
             fit_curve,
-            extend_curve
+            extend_curve,
+            refit_curve
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -87,7 +127,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{extend_curve, fit_curve};
+    use super::{extend_curve, fit_curve, refit_curve, KnotDto};
 
     #[test]
     fn fits_a_drawn_line() {
@@ -115,5 +155,48 @@ mod tests {
     fn rejects_a_resume_that_goes_backward() {
         let base = fit_curve(vec![[0.0, 0.0], [2.0, 1.0]], 0.05).unwrap();
         assert!(extend_curve(base.knots, vec![[1.0, 0.0], [1.5, 0.0]], 0.05).is_err());
+    }
+
+    #[test]
+    fn refit_honors_a_user_tangent() {
+        // A flat tangent at both ends over [0, 1] is the smoothstep 3t²−2t³,
+        // which passes through 0.5 at the midpoint.
+        let knots = vec![
+            KnotDto {
+                x: 0.0,
+                y: 0.0,
+                tangent: Some(0.0),
+            },
+            KnotDto {
+                x: 1.0,
+                y: 1.0,
+                tangent: Some(0.0),
+            },
+        ];
+        let fitted = refit_curve(knots).unwrap();
+        let mid = fitted.polyline[fitted.polyline.len() / 2];
+        assert!((mid[1] - 0.5).abs() < 0.05, "midpoint y was {}", mid[1]);
+    }
+
+    #[test]
+    fn refit_rejects_a_knot_dragged_past_its_neighbor() {
+        let knots = vec![
+            KnotDto {
+                x: 0.0,
+                y: 0.0,
+                tangent: None,
+            },
+            KnotDto {
+                x: 2.0,
+                y: 1.0,
+                tangent: None,
+            },
+            KnotDto {
+                x: 1.0,
+                y: 1.0,
+                tangent: None,
+            },
+        ];
+        assert!(refit_curve(knots).is_err());
     }
 }

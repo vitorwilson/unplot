@@ -51,3 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CSS chrome and the Canvas 2D surfaces (grid, axes, labels, curve, edit handles),
   a persisted toggle, and a system-preference default. Every later phase's UI is
   theme-aware by construction.
+- Editing foundation (Phase 3): knots now carry their tangents across IPC, a
+  `refit_curve` command re-fits edited knots without resampling, knot points are
+  drawn as grab dots, and `nearestKnot` hit-tests them in screen space.
