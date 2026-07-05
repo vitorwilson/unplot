@@ -1,0 +1,11 @@
+[package]
+name = "curve-engine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Headless curve engine for back-desmos: shape-preserving piecewise cubic Hermite splines, analytic calculus, and versioned serialization."
+publish = false
+
+[dependencies]
+
+[dev-dependencies]

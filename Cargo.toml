@@ -1,0 +1,5 @@
+# Cargo workspace root. The headless core lives in crates/; Tauri glue is added
+# under src-tauri/ once the app shell lands (see docs/PLAN.md, Phase 0).
+[workspace]
+resolver = "2"
+members = ["crates/curve-engine"]
