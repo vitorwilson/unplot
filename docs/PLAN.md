@@ -154,11 +154,11 @@ immediate.
 
 **Goal:** press Done, get the exact function as pretty math.
 
-- [ ] Render the piecewise spline as **LaTeX via KaTeX** (offline-bundled).
-- [ ] **Collapsed/simplified by default** ("23-segment spline over [a, b] — expand"),
+- [x] Render the piecewise spline as **LaTeX via KaTeX** (offline-bundled).
+- [x] **Collapsed/simplified by default** ("23-segment spline over [a, b] — expand"),
   with full per-segment cases on expand. Design the collapse so a hundred-segment
   curve is still legible.
-- [ ] The LaTeX is derived deterministically from the engine, so the same file
+- [x] The LaTeX is derived deterministically from the engine, so the same file
   always yields the same output.
 
 **Done when:** any drawn curve renders as correct, readable LaTeX, collapsed and
