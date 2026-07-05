@@ -4,6 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>back-desmos</title>
+    <style>
+      /* Critical background so a reload never flashes the wrong color before
+         styles.css loads (paired with the theme bootstrap below). */
+      html {
+        background: #f5f6f8;
+      }
+      html[data-theme="dark"] {
+        background: #0f1115;
+      }
+    </style>
+    <script>
+      // Set the theme before first paint so a reload doesn't flash the default
+      // palette (FOUC). Mirrors resolveInitialTheme() in src/theme.ts.
+      (function () {
+        try {
+          var stored = localStorage.getItem("back-desmos-theme");
+          var dark =
+            stored === "dark" ||
+            (stored !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.setAttribute(
+            "data-theme",
+            dark ? "dark" : "light",
+          );
+        } catch (e) {
+          /* localStorage/matchMedia unavailable — theme.ts will set it later. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <button

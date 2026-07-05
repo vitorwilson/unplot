@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "back-desmos",
-        "width": 800,
-        "height": 600,
+        "width": 1000,
+        "height": 780,
         "resizable": true,
         "fullscreen": false
       }

@@ -10,8 +10,8 @@ import { worldToScreen, type Viewport } from "./viewport";
 // Phase 2: a Cartesian plane on Canvas 2D — grid, axes, labels, wheel-zoom and
 // right-drag-pan — with hard-block drawing and lift-and-resume on top.
 
-const CSS_WIDTH = 640;
-const CSS_HEIGHT = 480;
+const CSS_WIDTH = 860;
+const CSS_HEIGHT = 600;
 const TARGET_GRID_PX = 64; // aim for ~this many pixels between gridlines
 const LABEL_FONT = "11px sans-serif";
 // Spike cap for the drawing hard-block, in world units of |dy/dx|.
