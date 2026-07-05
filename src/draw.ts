@@ -23,6 +23,7 @@ export function installDrawing(
   vp: Viewport,
   maxAbsSlope: number,
   redrawBackground: () => void,
+  fitStroke: (samples: Point[]) => Promise<Point[]>,
 ): void {
   const committed: Point[][] = [];
   let active: StrokeBuilder | null = null;
@@ -62,10 +63,18 @@ export function installDrawing(
     if (!active) {
       return;
     }
-    committed.push([...active.samples()]);
+    const raw = [...active.samples()];
     active = null;
     canvas.releasePointerCapture(event.pointerId);
     redraw();
+    void fitStroke(raw)
+      .then((smooth) => {
+        committed.push(smooth);
+        redraw();
+      })
+      .catch(() => {
+        // The core rejected the stroke (e.g. too few points); drop it.
+      });
   });
 }
 

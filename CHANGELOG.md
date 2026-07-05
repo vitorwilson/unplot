@@ -35,3 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hard-block freehand drawing (Phase 2): pointer capture with an instant "wall" —
   the pen cannot reverse in x or exceed the slope cap (`StrokeBuilder`, mirroring
   the Rust validators) — drawn live on the plane.
+- Fit through the core (Phase 2): on stroke end the frontend sends samples to the
+  Rust `fit_curve` command (resample → validate → fit) and renders the returned
+  smooth spline (`Spline::polyline`) instead of the raw polyline.

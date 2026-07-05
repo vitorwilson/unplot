@@ -90,6 +90,20 @@ impl Spline {
         b + 2.0 * c * h + 3.0 * d * h * h
     }
 
+    /// Sample the spline at `count` evenly spaced x across the domain, for
+    /// rendering the smooth curve. `count` is clamped to at least 2.
+    pub fn polyline(&self, count: usize) -> Vec<(f64, f64)> {
+        let n = count.max(2);
+        let (a, b) = self.domain;
+        (0..n)
+            .map(|i| {
+                let t = i as f64 / (n - 1) as f64;
+                let x = a + t * (b - a);
+                (x, self.eval(x))
+            })
+            .collect()
+    }
+
     /// The segment whose half-open span contains `x` (the last one starting at
     /// or before `x`). `x` is assumed already clamped to the domain.
     fn segment_at(&self, x: f64) -> &Segment {
@@ -187,6 +201,18 @@ mod tests {
         let spline = fit(vec![Knot::new(0.0, 0.0), Knot::new(2.0, 4.0)]);
         assert_close(spline.start_slope(), 2.0);
         assert_close(spline.end_slope(), 2.0);
+    }
+
+    #[test]
+    fn polyline_spans_the_domain() {
+        let spline = fit(vec![Knot::new(0.0, 0.0), Knot::new(2.0, 4.0)]);
+        let pts = spline.polyline(5);
+        assert_eq!(pts.len(), 5);
+        assert_close(pts[0].0, 0.0);
+        assert_close(pts[0].1, 0.0);
+        assert_close(pts[4].0, 2.0);
+        assert_close(pts[4].1, 4.0);
+        assert_close(pts[2].1, 2.0); // y = 2x at the midpoint x = 1
     }
 
     #[test]
