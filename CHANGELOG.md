@@ -29,3 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resample: `resample` thins dense, noisy pen samples to a minimal knot set via
   Ramer–Douglas–Peucker (curvature-aware), so the spline stays faithful without
   overfitting jitter.
+- Cartesian plane (Phase 2): a Canvas 2D grid and axes driven by pure,
+  unit-tested world↔screen viewport transforms (`worldToScreen`, `screenToWorld`,
+  `pan`, `zoomAt`) and visible-gridline math.

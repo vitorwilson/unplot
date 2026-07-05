@@ -1,42 +1,74 @@
 import { canvasPixelSize } from "./dpr";
+import { visibleGridLines } from "./grid";
+import { worldToScreen, type Viewport } from "./viewport";
 
-// Phase 0: prove the app is alive by drawing a Cartesian grid placeholder on a
-// high-DPI canvas. The interactive plane and hard-block input land in Phase 2
-// (see docs/PLAN.md).
+// Phase 2: a Cartesian plane on Canvas 2D. Pointer capture, hard-block drawing,
+// and lift-and-resume build on this next (see docs/PLAN.md).
 
 const CSS_WIDTH = 640;
 const CSS_HEIGHT = 480;
-const GRID_STEP = 32;
+const GRID_STEP = 1;
+const GRID_COLOR = "#e3e3e3";
+const AXIS_COLOR = "#8a8a8a";
 
-function drawPlaceholderGrid(canvas: HTMLCanvasElement): void {
+function centeredViewport(): Viewport {
+  return { originX: CSS_WIDTH / 2, originY: CSS_HEIGHT / 2, scale: 40 };
+}
+
+function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   const dpr = window.devicePixelRatio || 1;
   const { width, height } = canvasPixelSize(CSS_WIDTH, CSS_HEIGHT, dpr);
   canvas.width = width;
   canvas.height = height;
   canvas.style.width = `${CSS_WIDTH}px`;
   canvas.style.height = `${CSS_HEIGHT}px`;
-
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("drawPlaceholderGrid: 2D canvas context unavailable");
+    throw new Error("setupCanvas: 2D canvas context unavailable");
   }
   ctx.scale(dpr, dpr);
-  ctx.strokeStyle = "#ccc";
-  for (let x = 0; x <= CSS_WIDTH; x += GRID_STEP) {
+  return ctx;
+}
+
+function drawGrid(ctx: CanvasRenderingContext2D, vp: Viewport): void {
+  ctx.strokeStyle = GRID_COLOR;
+  ctx.lineWidth = 1;
+  const { xs, ys } = visibleGridLines(vp, CSS_WIDTH, CSS_HEIGHT, GRID_STEP);
+  for (const wx of xs) {
+    const sx = worldToScreen(vp, { x: wx, y: 0 }).x;
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, CSS_HEIGHT);
+    ctx.moveTo(sx, 0);
+    ctx.lineTo(sx, CSS_HEIGHT);
     ctx.stroke();
   }
-  for (let y = 0; y <= CSS_HEIGHT; y += GRID_STEP) {
+  for (const wy of ys) {
+    const sy = worldToScreen(vp, { x: 0, y: wy }).y;
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(CSS_WIDTH, y);
+    ctx.moveTo(0, sy);
+    ctx.lineTo(CSS_WIDTH, sy);
     ctx.stroke();
   }
 }
 
+function drawAxes(ctx: CanvasRenderingContext2D, vp: Viewport): void {
+  const origin = worldToScreen(vp, { x: 0, y: 0 });
+  ctx.strokeStyle = AXIS_COLOR;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, origin.y);
+  ctx.lineTo(CSS_WIDTH, origin.y);
+  ctx.moveTo(origin.x, 0);
+  ctx.lineTo(origin.x, CSS_HEIGHT);
+  ctx.stroke();
+}
+
+function drawPlane(ctx: CanvasRenderingContext2D, vp: Viewport): void {
+  ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
+  drawGrid(ctx, vp);
+  drawAxes(ctx, vp);
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
 if (canvas) {
-  drawPlaceholderGrid(canvas);
+  drawPlane(setupCanvas(canvas), centeredViewport());
 }
