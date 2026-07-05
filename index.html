@@ -44,6 +44,13 @@
       <h1>back-desmos</h1>
       <p class="tagline">Draw a function; get the math.</p>
       <canvas id="plane"></canvas>
+      <div class="actions">
+        <button id="done-btn" type="button">Done — show the math</button>
+      </div>
+      <section id="latex-panel" class="latex-panel" hidden>
+        <button id="latex-summary" class="latex-summary" type="button"></button>
+        <div id="latex-body" class="latex-body" hidden></div>
+      </section>
       <p class="hint" id="controls-hint"></p>
     </main>
     <script type="module" src="/src/main.ts"></script>

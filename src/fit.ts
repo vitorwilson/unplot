@@ -74,3 +74,15 @@ export async function extendStroke(
 export async function refitCurve(knots: Knot[]): Promise<FittedCurve> {
   return shape(await invoke<RawCurve>("refit_curve", { knots }));
 }
+
+/** The curve's exact function as LaTeX: a one-line `summary` and the full
+ * piecewise `latex` cases block. */
+export interface CurveLatex {
+  summary: string;
+  latex: string;
+}
+
+/** Ask the core for the current curve's LaTeX (the "Done" action). */
+export async function curveLatex(knots: Knot[]): Promise<CurveLatex> {
+  return invoke<CurveLatex>("curve_latex", { knots });
+}

@@ -65,6 +65,56 @@ h1 {
   touch-action: none;
 }
 
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#done-btn {
+  background: var(--accent, #1565c0);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#done-btn:hover {
+  filter: brightness(1.08);
+}
+
+.latex-panel {
+  width: min(860px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.latex-summary {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--ink);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.latex-summary:hover {
+  color: var(--accent, #1565c0);
+}
+
+.latex-body {
+  padding: 0.5rem 0.9rem 0.9rem;
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+}
+
 .hint {
   margin: 0;
   color: var(--muted);

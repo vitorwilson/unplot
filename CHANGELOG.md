@@ -78,3 +78,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LaTeX generation (Phase 4): the engine renders the fitted spline as an exact
   piecewise `cases` block plus a one-line summary, deterministically from its own
   coefficients (no CAS). Exposed via the `curve_latex` command.
+- LaTeX output UI (Phase 4): a "Done" button renders the exact function as pretty
+  math via offline-bundled KaTeX, shown collapsed (the summary line) and
+  expandable to the full piecewise cases block.

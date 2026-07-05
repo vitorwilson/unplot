@@ -1,8 +1,16 @@
+import "katex/dist/katex.min.css";
 import "./styles.css";
 import { canvasPixelSize } from "./dpr";
 import { installDrawing } from "./draw";
-import { extendStroke, fitStroke, refitCurve } from "./fit";
+import {
+  curveLatex,
+  extendStroke,
+  fitStroke,
+  refitCurve,
+  type FittedCurve,
+} from "./fit";
 import { tickStep, visibleGridLines } from "./grid";
+import { installLatexView } from "./latexView";
 import { installViewportControls } from "./navigate";
 import { installTheme, type CanvasColors } from "./theme";
 import { worldToScreen, type Viewport } from "./viewport";
@@ -124,6 +132,28 @@ function drawPlane(
   drawLabels(ctx, vp, step, colors.label);
 }
 
+/** Wire the "Done" button to render the current curve's LaTeX in the panel. */
+function installDoneButton(currentCurve: () => FittedCurve | null): void {
+  const doneBtn = document.querySelector<HTMLButtonElement>("#done-btn");
+  const panel = document.querySelector<HTMLElement>("#latex-panel");
+  const summary = document.querySelector<HTMLButtonElement>("#latex-summary");
+  const body = document.querySelector<HTMLElement>("#latex-body");
+  if (!doneBtn || !panel || !summary || !body) {
+    return;
+  }
+  const view = installLatexView(panel, summary, body);
+  doneBtn.addEventListener("click", () => {
+    const curve = currentCurve();
+    if (!curve || curve.knots.length < 2) {
+      view.message("Draw a function first.");
+      return;
+    }
+    void curveLatex(curve.knots)
+      .then((result) => view.show(result))
+      .catch(() => view.message("Couldn't render the function."));
+  });
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
 if (canvas) {
   const ctx = setupCanvas(canvas);
@@ -146,7 +176,7 @@ if (canvas) {
 
   const redrawBackground = () => drawPlane(ctx, viewport, theme.colors());
   redrawBackground();
-  const { redraw, undo, redo } = installDrawing(
+  const { redraw, undo, redo, currentCurve } = installDrawing(
     canvas,
     ctx,
     viewport,
@@ -157,6 +187,7 @@ if (canvas) {
   );
   repaint = redraw;
   installViewportControls(canvas, viewport, redraw);
+  installDoneButton(currentCurve);
 
   // Undo/redo: Ctrl/Cmd+Z, and Ctrl/Cmd+Shift+Z or Ctrl+Y to redo.
   window.addEventListener("keydown", (event) => {

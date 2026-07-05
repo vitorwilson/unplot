@@ -51,7 +51,12 @@ export function installDrawing(
   redrawBackground: () => void,
   fitter: StrokeFitter,
   colorsOf: () => CanvasColors,
-): { redraw: () => void; undo: () => void; redo: () => void } {
+): {
+  redraw: () => void;
+  undo: () => void;
+  redo: () => void;
+  currentCurve: () => FittedCurve | null;
+} {
   let curve: FittedCurve | null = null;
   let active: StrokeBuilder | null = null;
   let dragKind: DragKind | null = null;
@@ -308,6 +313,7 @@ export function installDrawing(
     redraw,
     undo: () => restore(history.undo()),
     redo: () => restore(history.redo()),
+    currentCurve: () => curve,
   };
 }
 
