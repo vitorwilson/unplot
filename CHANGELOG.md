@@ -16,3 +16,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   high-DPI canvas grid placeholder and a tested `canvasPixelSize` helper.
 - Tauri v2 desktop shell (`src-tauri/`) wired to the core through an
   `engine_version` command, establishing the frontend → shell → core path.
+- `just` task runner (`dev`/`build`/`test`/`lint`/`fmt`/`audit`) and GitHub
+  Actions CI running the full formatter/linter/test/audit suite on every push.
