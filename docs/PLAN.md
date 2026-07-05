@@ -266,6 +266,11 @@ platforms.
   not just one dev machine.
 - **The Rust core stays headless and 100% unit-testable** without Tauri —
   fit, eval, calculus, and serialization never import the UI.
+- **Theming (light + dark).** UI polish, not a feature phase, so it lives here.
+  Foundation laid early (Phase 3): every rendered surface — CSS *and* Canvas 2D
+  colors (grid, axes, labels, curve, edit handles) — reads from shared light/dark
+  color tokens with a user toggle, so each later phase's UI is theme-aware by
+  construction rather than retrofitted.
 - **Honest caveats, by design:** "exactly what you drew" holds *as long as what
   you drew was a function* — the hard-block is what makes that true. The pretty-
   function layer is best-effort and error-gated. Keep both truths visible to the
