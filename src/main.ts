@@ -136,12 +136,21 @@ function drawPlane(
 function installDoneButton(currentCurve: () => FittedCurve | null): void {
   const doneBtn = document.querySelector<HTMLButtonElement>("#done-btn");
   const panel = document.querySelector<HTMLElement>("#latex-panel");
-  const summary = document.querySelector<HTMLButtonElement>("#latex-summary");
+  const summaryButton =
+    document.querySelector<HTMLButtonElement>("#latex-summary");
+  const copyButton = document.querySelector<HTMLButtonElement>("#latex-copy");
   const body = document.querySelector<HTMLElement>("#latex-body");
-  if (!doneBtn || !panel || !summary || !body) {
+  const math = document.querySelector<HTMLElement>("#latex-math");
+  if (!doneBtn || !panel || !summaryButton || !copyButton || !body || !math) {
     return;
   }
-  const view = installLatexView(panel, summary, body);
+  const view = installLatexView({
+    panel,
+    summaryButton,
+    copyButton,
+    body,
+    math,
+  });
   doneBtn.addEventListener("click", () => {
     const curve = currentCurve();
     if (!curve || curve.knots.length < 2) {

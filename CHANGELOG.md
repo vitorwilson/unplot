@@ -81,3 +81,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LaTeX output UI (Phase 4): a "Done" button renders the exact function as pretty
   math via offline-bundled KaTeX, shown collapsed (the summary line) and
   expandable to the full piecewise cases block.
+- Copy LaTeX: a button copies the function's LaTeX source to the clipboard, to
+  paste into other tools.

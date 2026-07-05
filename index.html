@@ -48,8 +48,19 @@
         <button id="done-btn" type="button">Done — show the math</button>
       </div>
       <section id="latex-panel" class="latex-panel" hidden>
-        <button id="latex-summary" class="latex-summary" type="button"></button>
-        <div id="latex-body" class="latex-body" hidden></div>
+        <div class="latex-header">
+          <button
+            id="latex-summary"
+            class="latex-summary"
+            type="button"
+          ></button>
+          <button id="latex-copy" class="latex-copy" type="button" hidden>
+            Copy LaTeX
+          </button>
+        </div>
+        <div id="latex-body" class="latex-body" hidden>
+          <div id="latex-math"></div>
+        </div>
       </section>
       <p class="hint" id="controls-hint"></p>
     </main>
