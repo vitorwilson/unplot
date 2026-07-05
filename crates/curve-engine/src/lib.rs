@@ -11,6 +11,14 @@
 
 #![forbid(unsafe_code)]
 
+mod curve;
+mod error;
+mod knot;
+
+pub use curve::Curve;
+pub use error::CurveError;
+pub use knot::Knot;
+
 /// Version of the curve engine, surfaced to the UI shell so it can show which
 /// core build it is running against.
 ///
