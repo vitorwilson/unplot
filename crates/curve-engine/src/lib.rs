@@ -14,6 +14,7 @@
 mod curve;
 mod error;
 mod knot;
+pub mod latex;
 mod resample;
 mod spline;
 mod validate;

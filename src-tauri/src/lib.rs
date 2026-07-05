@@ -75,6 +75,24 @@ fn refit_curve(knots: Vec<KnotDto>) -> Result<FittedCurve, String> {
     Ok(render(&curve))
 }
 
+/// The exact function as LaTeX: a one-line summary (shown collapsed) and the full
+/// piecewise `cases` block (shown on expand). Pressing "Done" calls this.
+#[derive(Serialize)]
+struct CurveLatex {
+    summary: String,
+    latex: String,
+}
+
+#[tauri::command]
+fn curve_latex(knots: Vec<KnotDto>) -> Result<CurveLatex, String> {
+    let curve = Curve::new(to_knots(&knots)).map_err(|error| error.to_string())?;
+    let spline = curve.fit();
+    Ok(CurveLatex {
+        summary: curve_engine::latex::summary(&spline),
+        latex: curve_engine::latex::piecewise(&spline),
+    })
+}
+
 fn pairs(samples: &[[f64; 2]]) -> Vec<(f64, f64)> {
     samples.iter().map(|&[x, y]| (x, y)).collect()
 }
@@ -125,7 +143,8 @@ pub fn run() {
             engine_version,
             fit_curve,
             extend_curve,
-            refit_curve
+            refit_curve,
+            curve_latex
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -133,7 +152,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{extend_curve, fit_curve, refit_curve, KnotDto};
+    use super::{curve_latex, extend_curve, fit_curve, refit_curve, KnotDto};
 
     #[test]
     fn fits_a_drawn_line() {
@@ -195,6 +214,13 @@ mod tests {
             dto(1.0, 1.0, None),
         ];
         assert!(refit_curve(knots).is_err());
+    }
+
+    #[test]
+    fn curve_latex_returns_a_summary_and_cases_block() {
+        let result = curve_latex(vec![dto(0.0, 0.0, None), dto(2.0, 4.0, None)]).unwrap();
+        assert_eq!(result.summary, "1-segment spline over [0, 2]");
+        assert!(result.latex.contains("\\begin{cases}"));
     }
 
     fn dto(x: f64, y: f64, tangent: Option<f64>) -> KnotDto {

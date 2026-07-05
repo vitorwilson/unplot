@@ -75,3 +75,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undo/redo (Phase 3): Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z or Ctrl+Y redoes
   every committed change — draw, resume, point/tangent edit, translate — over a
   snapshot `History`. A click that doesn't move records nothing.
+- LaTeX generation (Phase 4): the engine renders the fitted spline as an exact
+  piecewise `cases` block plus a one-line summary, deterministically from its own
+  coefficients (no CAS). Exposed via the `curve_latex` command.
