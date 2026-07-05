@@ -1,4 +1,4 @@
-# back-desmos
+# unplot
 
 **Draw a function. Get the math.**
 

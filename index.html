@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>back-desmos</title>
+    <title>unplot</title>
     <style>
       /* Critical background so a reload never flashes the wrong color before
          styles.css loads (paired with the theme bootstrap below). */
@@ -19,7 +19,7 @@
       // palette (FOUC). Mirrors resolveInitialTheme() in src/theme.ts.
       (function () {
         try {
-          var stored = localStorage.getItem("back-desmos-theme");
+          var stored = localStorage.getItem("unplot-theme");
           var dark =
             stored === "dark" ||
             (stored !== "light" &&
@@ -41,7 +41,7 @@
       aria-label="Toggle color theme"
     ></button>
     <main>
-      <h1>back-desmos</h1>
+      <h1>unplot</h1>
       <p class="tagline">Draw a function; get the math.</p>
       <canvas id="plane"></canvas>
       <div class="actions">

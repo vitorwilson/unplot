@@ -33,7 +33,7 @@ const DARK: CanvasColors = {
   handleActive: "#a6d2ff",
 };
 
-const STORAGE_KEY = "back-desmos-theme";
+const STORAGE_KEY = "unplot-theme";
 
 /** Canvas palette for a theme. */
 export function canvasColors(theme: Theme): CanvasColors {

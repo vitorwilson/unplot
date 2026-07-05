@@ -1,7 +1,7 @@
 [package]
-name = "back-desmos-app"
+name = "unplot-app"
 version = "0.1.0"
-description = "Tauri desktop shell for back-desmos."
+description = "Tauri desktop shell for unplot."
 license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.77.2"

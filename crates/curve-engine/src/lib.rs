@@ -1,4 +1,4 @@
-//! Headless curve engine for "back-desmos".
+//! Headless curve engine for "unplot".
 //!
 //! The source of truth for a drawing is a shape-preserving piecewise cubic
 //! Hermite spline (PCHIP / Fritsch–Carlson tangents): C¹ everywhere, locally

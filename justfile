@@ -1,4 +1,4 @@
-# back-desmos task runner. Run `just` with no arguments to list recipes.
+# unplot task runner. Run `just` with no arguments to list recipes.
 # The same recipes are what CI runs, so "green locally" means "green in CI".
 
 # List available recipes.

@@ -1,4 +1,4 @@
-# Development Plan — "Desmos Backwards"
+# Development Plan — "unplot"
 
 > This plan is maintained as the project evolves. Phases may shift based on 
 > learning and community feedback. See the releases and CHANGELOG for what's 
