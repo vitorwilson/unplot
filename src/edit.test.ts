@@ -3,10 +3,12 @@ import {
   clampKnotDrag,
   nearestKnot,
   nearestTangentHandle,
+  nearPolyline,
+  offsetCurve,
   slopeFromHandleDrag,
   tangentHandleEnd,
 } from "./edit";
-import type { Knot } from "./fit";
+import type { FittedCurve, Knot } from "./fit";
 import { worldToScreen, type Viewport } from "./viewport";
 
 const vp: Viewport = { originX: 320, originY: 240, scale: 40 };
@@ -123,5 +125,47 @@ describe("slopeFromHandleDrag", () => {
 
   it("clamps to the slope cap", () => {
     expect(slopeFromHandleDrag(origin, { x: 101, y: -900 }, 5)).toBe(5);
+  });
+});
+
+describe("nearPolyline", () => {
+  const line = [
+    { x: 0, y: 0 },
+    { x: 4, y: 0 },
+  ]; // the x-axis from 0 to 4
+
+  it("is true for a point on the curve", () => {
+    const on = worldToScreen(vp, { x: 2, y: 0 });
+    expect(nearPolyline(line, vp, on, 6)).toBe(true);
+  });
+
+  it("is false for a point well off the curve", () => {
+    const off = worldToScreen(vp, { x: 2, y: 3 });
+    expect(nearPolyline(line, vp, off, 6)).toBe(false);
+  });
+});
+
+describe("offsetCurve", () => {
+  const curve: FittedCurve = {
+    knots: [
+      { x: 0, y: 0, tangent: 1, slope: 1 },
+      { x: 1, y: 2, tangent: null, slope: 0.5 },
+    ],
+    polyline: [
+      { x: 0, y: 0 },
+      { x: 1, y: 2 },
+    ],
+  };
+
+  it("shifts knots and polyline by the offset, preserving slopes", () => {
+    const moved = offsetCurve(curve, 3, -1);
+    expect(moved.knots[0]).toEqual({ x: 3, y: -1, tangent: 1, slope: 1 });
+    expect(moved.knots[1].x).toBe(4);
+    expect(moved.polyline[1]).toEqual({ x: 4, y: 1 });
+  });
+
+  it("does not mutate the original", () => {
+    offsetCurve(curve, 5, 5);
+    expect(curve.knots[0].x).toBe(0);
   });
 });

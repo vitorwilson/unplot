@@ -161,6 +161,6 @@ if (canvas) {
   const hint = document.querySelector("#controls-hint");
   if (hint) {
     hint.textContent =
-      "Draw: left-drag · Move a point: drag a dot · Pan: two-finger or right-drag · Zoom: pinch or Ctrl-scroll";
+      "Draw: left-drag · Edit: drag a dot or handle · Move: drag the curve · Pan: two-finger or right-drag · Zoom: pinch or Ctrl-scroll";
   }
 }

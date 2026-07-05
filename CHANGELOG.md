@@ -68,3 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drag the tip to set the slope directly (the "move the slope" interaction).
   The engine reports the effective slope per knot (`Spline::knot_slopes`), and
   the drag is clamped to the slope cap.
+- Translate the whole curve (Phase 3): grab the curve body (away from any knot or
+  handle) and drag to move all knots together. A rigid translation preserves the
+  shape exactly, so the knots and polyline shift locally with no re-fit
+  (`offsetCurve`); `nearPolyline` hit-tests the curve body.

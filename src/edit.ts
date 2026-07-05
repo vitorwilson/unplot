@@ -1,4 +1,4 @@
-import type { Knot } from "./fit";
+import type { FittedCurve, Knot } from "./fit";
 import { worldToScreen, type Point, type Viewport } from "./viewport";
 
 // Pure geometry for editing the curve: which knot (if any) the pointer grabbed.
@@ -132,4 +132,57 @@ export function slopeFromHandleDrag(
   const dx = Math.max(pointer.x - knotScreen.x, MIN_HANDLE_DX);
   const dy = pointer.y - knotScreen.y;
   return clamp(-dy / dx, -maxSlope, maxSlope); // screen y flipped
+}
+
+/** Whether `screen` lies within `radiusPx` of the curve's rendered polyline —
+ * i.e. the pointer grabbed the curve body, to translate the whole curve. */
+export function nearPolyline(
+  polyline: readonly Point[],
+  vp: Viewport,
+  screen: Point,
+  radiusPx: number,
+): boolean {
+  for (let i = 1; i < polyline.length; i++) {
+    const a = worldToScreen(vp, polyline[i - 1]);
+    const b = worldToScreen(vp, polyline[i]);
+    if (pointSegmentDistance(screen, a, b) <= radiusPx) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Translate a whole curve by a world-space offset. A rigid shift preserves the
+ * shape exactly (and slopes/tangents are translation-invariant), so both the
+ * knots and the cached polyline move together — no re-fit needed.
+ */
+export function offsetCurve(
+  curve: FittedCurve,
+  dx: number,
+  dy: number,
+): FittedCurve {
+  return {
+    knots: curve.knots.map((knot) => ({
+      ...knot,
+      x: knot.x + dx,
+      y: knot.y + dy,
+    })),
+    polyline: curve.polyline.map((point) => ({
+      x: point.x + dx,
+      y: point.y + dy,
+    })),
+  };
+}
+
+/** Shortest distance from point `p` to segment `a`–`b` (all in screen space). */
+function pointSegmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) {
+    return Math.hypot(p.x - a.x, p.y - a.y);
+  }
+  const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq, 0, 1);
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }

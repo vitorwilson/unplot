@@ -2,6 +2,8 @@ import {
   clampKnotDrag,
   nearestKnot,
   nearestTangentHandle,
+  nearPolyline,
+  offsetCurve,
   slopeFromHandleDrag,
   tangentHandleEnd,
 } from "./edit";
@@ -21,7 +23,7 @@ const GRAB_RADIUS = 10; // px within which a click grabs a knot to drag it
 const HANDLE_LEN = 36; // px length of a tangent handle
 const HANDLE_END_RADIUS = 3; // px radius of the draggable handle tip
 
-type DragKind = "knot" | "tangent";
+type DragKind = "knot" | "tangent" | "translate";
 
 /** How the surrounding app fits strokes through the Rust core: a fresh curve, a
  * C¹ resume of the existing one, or a re-fit of edited knots. */
@@ -54,6 +56,10 @@ export function installDrawing(
   let dragKind: DragKind | null = null;
   let dragIndex: number | null = null;
   let dragKnots: Knot[] | null = null;
+  // Translate state: the curve as grabbed and the world point where the drag
+  // began. Offsetting is exact, so no re-fit is involved.
+  let translateBase: FittedCurve | null = null;
+  let translateStart: Point | null = null;
   // Monotonic token so out-of-order refit responses during a fast drag are
   // ignored — only the latest applies.
   let refitToken = 0;
@@ -164,6 +170,46 @@ export function installDrawing(
     return true;
   };
 
+  // Grab the curve body (away from any knot/handle) to translate the whole curve.
+  const beginTranslate = (event: PointerEvent): boolean => {
+    if (!curve) {
+      return false;
+    }
+    if (!nearPolyline(curve.polyline, vp, eventToScreen(event), GRAB_RADIUS)) {
+      return false;
+    }
+    dragKind = "translate";
+    translateBase = curve;
+    translateStart = eventToWorld(event);
+    canvas.setPointerCapture(event.pointerId);
+    return true;
+  };
+
+  const moveTranslate = (event: PointerEvent): boolean => {
+    if (dragKind !== "translate" || !translateBase || !translateStart) {
+      return false;
+    }
+    const now = eventToWorld(event);
+    curve = offsetCurve(
+      translateBase,
+      now.x - translateStart.x,
+      now.y - translateStart.y,
+    );
+    redraw();
+    return true;
+  };
+
+  const endTranslate = (event: PointerEvent): boolean => {
+    if (dragKind !== "translate") {
+      return false;
+    }
+    canvas.releasePointerCapture(event.pointerId);
+    dragKind = null;
+    translateBase = null;
+    translateStart = null;
+    return true;
+  };
+
   const beginStroke = (event: PointerEvent): void => {
     // Resume from the previous curve's right endpoint, so the pen can't restart
     // behind where it left off.
@@ -202,14 +248,14 @@ export function installDrawing(
     if (event.button !== 0) {
       return;
     }
-    if (beginEditDrag(event)) {
+    if (beginEditDrag(event) || beginTranslate(event)) {
       return;
     }
     beginStroke(event);
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (moveEditDrag(event)) {
+    if (moveEditDrag(event) || moveTranslate(event)) {
       return;
     }
     if (active && active.tryAdd(eventToWorld(event))) {
@@ -218,7 +264,7 @@ export function installDrawing(
   });
 
   canvas.addEventListener("pointerup", (event) => {
-    if (endEditDrag(event)) {
+    if (endEditDrag(event) || endTranslate(event)) {
       return;
     }
     endStroke(event);
