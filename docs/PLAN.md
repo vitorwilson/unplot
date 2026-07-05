@@ -114,7 +114,7 @@ interface so the rest of the core doesn't depend on the implementation.
 **Goal:** draw a valid function on a Cartesian plane with the mouse; pieces
 allowed.
 
-- [ ] Cartesian plane on **HTML5 Canvas 2D** (grid, axes, labels, zoom/pan). Mind
+- [x] Cartesian plane on **HTML5 Canvas 2D** (grid, axes, labels, zoom/pan). Mind
   the **Linux / WebKitGTK canvas-performance gotcha** — budget for it here,
   not in QA.
 - [x] Pointer capture with **hard-block** wired to the Phase 1 validators: the line
