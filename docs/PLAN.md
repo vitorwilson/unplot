@@ -66,14 +66,14 @@ These are settled. Don't re-litigate them in code without raising it first.
 **Goal:** an empty-but-alive Tauri v2 app that opens a window, with CI passing
 on the first commit.
 
-- [ ] Tauri v2 project: headless Rust core crate (`crates/…`) + web frontend
+- [x] Tauri v2 project: headless Rust core crate (`crates/…`) + web frontend
   (`src/`) + Tauri glue (`src-tauri/`). The core has zero UI dependencies.
-- [ ] `just` (or `make`) task runner exposing `just test`, `just lint`, `just fmt`.
-- [ ] CI on every push/PR: `cargo fmt --check`, `cargo clippy -D warnings`,
+- [x] `just` (or `make`) task runner exposing `just test`, `just lint`, `just fmt`.
+- [x] CI on every push/PR: `cargo fmt --check`, `cargo clippy -D warnings`,
   `cargo test`, `cargo audit`; `prettier --check`, `eslint --max-warnings 0`,
   `vitest run`, `pnpm audit`. Red build blocks merge. All commits must pass
   the full suite.
-- [ ] `CHANGELOG.md` (Keep a Changelog), `config/*.env.example`, `.gitignore` for
+- [x] `CHANGELOG.md` (Keep a Changelog), `config/*.env.example`, `.gitignore` for
   real env/secrets, empty `docs/` wired up.
 
 **Done when:** the window opens on all three platforms and CI is green.
