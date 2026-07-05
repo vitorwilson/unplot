@@ -23,3 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`Spline::eval`) — C¹ across joins, no overshoot, headless and unit-tested.
 - Hard-block validators (`advances_in_x`, `within_slope_cap`, `edit_keeps_order`):
   pure predicates the drawing UI uses to refuse invalid input at capture time.
+- Resume drawing: `Curve::extend` appends a stroke that joins C¹ (pinning the
+  join to the previous ending slope); `Spline::start_slope`/`end_slope` expose
+  the boundary slopes.

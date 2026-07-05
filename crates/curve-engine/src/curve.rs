@@ -56,6 +56,30 @@ impl Curve {
     pub fn fit(&self) -> Spline {
         fit_spline(&self.knots)
     }
+
+    /// Resume drawing: append `additional` knots to the right, pinning the join
+    /// so the combined curve stays C¹ — the new stroke begins with the slope the
+    /// previous stroke ended on (docs/PLAN.md: "Drawing in pieces"). The new
+    /// knots must continue strictly to the right, or construction fails.
+    ///
+    /// # Example
+    /// ```
+    /// use curve_engine::{Curve, Knot};
+    /// let base = Curve::new(vec![Knot::new(0.0, 0.0), Knot::new(1.0, 1.0)]).unwrap();
+    /// let joined = base.extend(vec![Knot::new(2.0, 0.0)]).unwrap();
+    /// assert_eq!(joined.domain(), (0.0, 2.0));
+    /// ```
+    pub fn extend(&self, additional: Vec<Knot>) -> Result<Curve, CurveError> {
+        let end_slope = self.fit().end_slope();
+        let mut knots = self.knots.clone();
+        // Pin the current last knot to the slope the stroke ended on, so
+        // re-fitting neither kinks the join nor re-shapes the previous stroke.
+        if let Some(last) = knots.last_mut() {
+            last.tangent = Some(end_slope);
+        }
+        knots.extend(additional);
+        Curve::new(knots)
+    }
 }
 
 fn check_count(knots: &[Knot]) -> Result<(), CurveError> {
@@ -171,5 +195,38 @@ mod tests {
         let curve = Curve::new(vec![Knot::new(0.0, 0.0), Knot::with_tangent(1.0, 1.0, 0.5)])
             .expect("valid knots");
         assert_eq!(curve.knots()[1].tangent, Some(0.5));
+    }
+
+    #[test]
+    fn extend_joins_c1_at_the_resume_point() {
+        let base = Curve::new(vec![
+            Knot::new(0.0, 0.0),
+            Knot::new(1.0, 1.0),
+            Knot::new(2.0, 0.0),
+        ])
+        .unwrap();
+        let end_slope = base.fit().end_slope();
+        let joined = base.extend(vec![Knot::new(3.0, 2.0)]).unwrap();
+
+        // The first new segment (starting at x=2) must begin on the previous
+        // stroke's ending slope, so the join is C¹ with no kink.
+        let spline = joined.fit();
+        let new_segment = &spline.segments()[2];
+        assert!((new_segment.coeffs[1] - end_slope).abs() < 1e-9);
+    }
+
+    #[test]
+    fn extend_widens_the_domain() {
+        let base = Curve::new(vec![Knot::new(0.0, 0.0), Knot::new(1.0, 1.0)]).unwrap();
+        let joined = base
+            .extend(vec![Knot::new(2.0, 2.0), Knot::new(3.0, 1.0)])
+            .unwrap();
+        assert_eq!(joined.domain(), (0.0, 3.0));
+    }
+
+    #[test]
+    fn extend_rejects_backward_knots() {
+        let base = Curve::new(vec![Knot::new(0.0, 0.0), Knot::new(2.0, 1.0)]).unwrap();
+        assert!(base.extend(vec![Knot::new(1.0, 0.0)]).is_err());
     }
 }

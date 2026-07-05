@@ -76,6 +76,20 @@ impl Spline {
         &self.segments
     }
 
+    /// Slope at the left end of the domain, `f'(x_first)`.
+    pub fn start_slope(&self) -> f64 {
+        self.segments[0].coeffs[1]
+    }
+
+    /// Slope at the right end of the domain, `f'(x_last)`. Used when resuming a
+    /// drawing so the next stroke can join C¹.
+    pub fn end_slope(&self) -> f64 {
+        let last = &self.segments[self.segments.len() - 1];
+        let h = last.x_end - last.x_start;
+        let [_, b, c, d] = last.coeffs;
+        b + 2.0 * c * h + 3.0 * d * h * h
+    }
+
     /// The segment whose half-open span contains `x` (the last one starting at
     /// or before `x`). `x` is assumed already clamped to the domain.
     fn segment_at(&self, x: f64) -> &Segment {
@@ -166,6 +180,13 @@ mod tests {
             (actual - expected).abs() < 1e-9,
             "expected {actual} ≈ {expected}"
         );
+    }
+
+    #[test]
+    fn reports_boundary_slopes_of_a_line() {
+        let spline = fit(vec![Knot::new(0.0, 0.0), Knot::new(2.0, 4.0)]);
+        assert_close(spline.start_slope(), 2.0);
+        assert_close(spline.end_slope(), 2.0);
     }
 
     #[test]
