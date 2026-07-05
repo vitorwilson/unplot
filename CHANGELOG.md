@@ -12,3 +12,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Development roadmap (`docs/PLAN.md`).
 - Rust workspace with the headless `curve-engine` core crate (Phase 0 scaffold).
 - Repo hygiene: `.gitignore`, `README.md`, `config/deploy.env.example`.
+- Web frontend scaffold (Vite + TypeScript + Vitest + ESLint/Prettier) with a
+  high-DPI canvas grid placeholder and a tested `canvasPixelSize` helper.

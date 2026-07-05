@@ -1,0 +1,11 @@
+# Generated or handled by other tools
+node_modules/
+dist/
+target/
+crates/
+src-tauri/
+pnpm-lock.yaml
+Cargo.lock
+
+# Markdown is left to its authors (includes untracked docs)
+**/*.md

@@ -1,0 +1,5 @@
+# pnpm 10+ reads package-level settings here (no longer from package.json).
+# Allow esbuild's postinstall so Vite/Vitest get their native binary; every
+# other dependency build script stays blocked by default.
+allowBuilds:
+  esbuild: true
