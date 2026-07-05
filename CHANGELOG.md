@@ -21,3 +21,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Curve engine (Phase 1): a validated `Knot`/`Curve` model plus shape-preserving
   PCHIP spline fitting (`Curve::fit`) and domain-clamped evaluation
   (`Spline::eval`) — C¹ across joins, no overshoot, headless and unit-tested.
+- Hard-block validators (`advances_in_x`, `within_slope_cap`, `edit_keeps_order`):
+  pure predicates the drawing UI uses to refuse invalid input at capture time.
