@@ -38,7 +38,6 @@ export function installDrawing(
   redrawBackground: () => void,
   fitter: StrokeFitter,
   colorsOf: () => CanvasColors,
-  isPanModifier: () => boolean,
 ): { redraw: () => void } {
   let curve: FittedCurve | null = null;
   let active: StrokeBuilder | null = null;
@@ -164,9 +163,8 @@ export function installDrawing(
   };
 
   canvas.addEventListener("pointerdown", (event) => {
-    // Only the primary button edits/draws; others (and Space+left) pan/zoom via
-    // navigate.ts.
-    if (event.button !== 0 || isPanModifier()) {
+    // Only the primary button edits/draws; others drive pan/zoom (navigate.ts).
+    if (event.button !== 0) {
       return;
     }
     if (beginKnotDrag(event)) {

@@ -1,12 +1,49 @@
 import { pan, zoomAt, type Viewport } from "./viewport";
 
-// Wheel-to-zoom (about the cursor) and right-drag-to-pan. These mutate the
-// shared viewport object in place — curves are stored in world coordinates, so
-// navigating only changes how the same curve is projected — then repaint.
-// Left-drag is reserved for drawing (see draw.ts).
+// Trackpad-first navigation: a two-finger scroll pans the plane; a pinch (or
+// Ctrl + two-finger scroll, a reliable fallback on WebKitGTK) zooms about the
+// cursor. Both arrive as `wheel` events — pinch sets `ctrlKey`. Right-drag pans
+// too, for mice. These mutate the shared viewport in place (curves are stored in
+// world coordinates, so navigating only reprojects them) and repaint.
 
 const ZOOM_PER_WHEEL_LINE = 1.0015;
+const LINE_HEIGHT_PX = 16; // deltaMode === 1 (lines) → approximate pixels
 const PAN_BUTTON = 2; // right mouse
+
+/** What a wheel event should do. `dx`/`dy` are screen-pixel pan amounts; `factor`
+ * is the zoom multiplier. */
+export interface WheelAction {
+  kind: "pan" | "zoom";
+  dx: number;
+  dy: number;
+  factor: number;
+}
+
+/**
+ * Decide whether a wheel event pans or zooms: a pinch or Ctrl+scroll zooms; a
+ * plain two-finger scroll (or mouse wheel) pans. Pure, so it is unit-tested.
+ *
+ * @example
+ * interpretWheel(false, 0, 10, 0); // { kind: "pan", dx: 0, dy: -10, ... }
+ */
+export function interpretWheel(
+  ctrlKey: boolean,
+  deltaX: number,
+  deltaY: number,
+  deltaMode: number,
+): WheelAction {
+  const unit = deltaMode === 1 ? LINE_HEIGHT_PX : 1;
+  if (ctrlKey) {
+    return {
+      kind: "zoom",
+      dx: 0,
+      dy: 0,
+      factor: ZOOM_PER_WHEEL_LINE ** (-deltaY * unit),
+    };
+  }
+  // Pan opposite the scroll so the plane follows the fingers.
+  return { kind: "pan", dx: -deltaX * unit, dy: -deltaY * unit, factor: 1 };
+}
 
 /** Copy `next`'s fields onto the shared `vp` so every closure holding `vp` sees
  * the change without needing a new reference. */
@@ -20,7 +57,6 @@ export function installViewportControls(
   canvas: HTMLCanvasElement,
   vp: Viewport,
   redraw: () => void,
-  isPanModifier: () => boolean,
 ): void {
   const localPoint = (event: { clientX: number; clientY: number }) => {
     const rect = canvas.getBoundingClientRect();
@@ -31,8 +67,17 @@ export function installViewportControls(
     "wheel",
     (event) => {
       event.preventDefault();
-      const factor = ZOOM_PER_WHEEL_LINE ** -event.deltaY;
-      apply(vp, zoomAt(vp, localPoint(event), factor));
+      const action = interpretWheel(
+        event.ctrlKey,
+        event.deltaX,
+        event.deltaY,
+        event.deltaMode,
+      );
+      if (action.kind === "zoom") {
+        apply(vp, zoomAt(vp, localPoint(event), action.factor));
+      } else {
+        apply(vp, pan(vp, action.dx, action.dy));
+      }
       redraw();
     },
     { passive: false },
@@ -44,11 +89,7 @@ export function installViewportControls(
   let panning: { x: number; y: number } | null = null;
 
   canvas.addEventListener("pointerdown", (event) => {
-    // Pan with the right button (mouse) or Space + left button (trackpad-friendly:
-    // one-finger drag while a modifier is held). Left-drag alone still draws.
-    const wantsPan =
-      event.button === PAN_BUTTON || (event.button === 0 && isPanModifier());
-    if (!wantsPan) {
+    if (event.button !== PAN_BUTTON) {
       return;
     }
     event.preventDefault();

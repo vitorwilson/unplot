@@ -57,8 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UI polish: larger plane (860×600) in a roomier window, more breathing room
   between the plane and its labels, and an inline theme bootstrap that sets the
   palette before first paint so a reload no longer flashes the wrong colors.
-- Trackpad-friendly pan: hold Space and left-drag to pan (works on a trackpad,
-  unlike right-drag, which still works for mice).
+- Trackpad navigation: two-finger scroll pans the plane; pinch (or Ctrl + scroll,
+  a WebKitGTK-safe fallback) zooms about the cursor. Right-drag still pans for
+  mice. Replaces the Space+drag pan, which didn't work on trackpads.
 - Draggable knot points (Phase 3): grab a knot dot and drag to reshape the curve,
   re-fitting live through the core. `clampKnotDrag` hard-blocks the drag — a knot
   can't cross a neighbor's x or exceed the slope cap — so the curve stays a valid
