@@ -1,0 +1,21 @@
+# Rust build output (Cargo.lock IS committed — this is an app, not a library)
+/target
+**/*.rs.bk
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Tauri
+src-tauri/target/
+
+# Real secrets: the *.example files are committed, the filled-in ones are not
+config/*.env
+!config/*.env.example
+
+# Logs and OS/editor cruft
+*.log
+.DS_Store
+Thumbs.db
