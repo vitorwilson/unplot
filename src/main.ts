@@ -1,3 +1,4 @@
+import "./styles.css";
 import { canvasPixelSize } from "./dpr";
 import { installDrawing } from "./draw";
 import { extendStroke, fitStroke } from "./fit";
@@ -6,7 +7,7 @@ import { installViewportControls } from "./navigate";
 import { worldToScreen, type Viewport } from "./viewport";
 
 // Phase 2: a Cartesian plane on Canvas 2D — grid, axes, labels, wheel-zoom and
-// middle-drag-pan — with hard-block drawing and lift-and-resume on top.
+// right-drag-pan — with hard-block drawing and lift-and-resume on top.
 
 const CSS_WIDTH = 640;
 const CSS_HEIGHT = 480;
@@ -130,4 +131,9 @@ if (canvas) {
     { fit: fitStroke, extend: extendStroke },
   );
   installViewportControls(canvas, viewport, redraw);
+
+  const hint = document.querySelector("#controls-hint");
+  if (hint) {
+    hint.textContent = "Left-drag: draw · Right-drag: pan · Wheel: zoom";
+  }
 }

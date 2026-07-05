@@ -1,11 +1,12 @@
 import { pan, zoomAt, type Viewport } from "./viewport";
 
-// Wheel-to-zoom (about the cursor) and middle-drag-to-pan. These mutate the
+// Wheel-to-zoom (about the cursor) and right-drag-to-pan. These mutate the
 // shared viewport object in place — curves are stored in world coordinates, so
 // navigating only changes how the same curve is projected — then repaint.
+// Left-drag is reserved for drawing (see draw.ts).
 
 const ZOOM_PER_WHEEL_LINE = 1.0015;
-const PAN_BUTTON = 1; // middle mouse
+const PAN_BUTTON = 2; // right mouse
 
 /** Copy `next`'s fields onto the shared `vp` so every closure holding `vp` sees
  * the change without needing a new reference. */
@@ -35,6 +36,9 @@ export function installViewportControls(
     },
     { passive: false },
   );
+
+  // Suppress the browser context menu so right-drag can pan uninterrupted.
+  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   let panning: { x: number; y: number } | null = null;
 

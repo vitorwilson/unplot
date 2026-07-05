@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lift & resume (Phase 2): later strokes extend the current curve through the
   `extend_curve` command, joining C¹; the pen hard-blocks against the previous
   endpoint so a resumed stroke can't restart behind where it left off.
-- Plane navigation (Phase 2): wheel-zoom about the cursor and middle-drag pan,
+- Plane navigation (Phase 2): wheel-zoom about the cursor and right-drag pan,
   with a zoom-aware "nice" grid step (`tickStep`) and numeric axis labels, so the
   user can pan right to resume drawing off-screen.
+- Centered, styled layout (`styles.css`): the plane sits centered as a white
+  panel with a title and an on-screen controls hint, replacing the unstyled
+  left-aligned page.
