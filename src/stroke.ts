@@ -29,13 +29,19 @@ export function withinSlopeCap(
 export class StrokeBuilder {
   private readonly points: Point[] = [];
 
-  constructor(private readonly maxAbsSlope: number) {}
+  /** `anchor` is the endpoint of an existing curve when resuming: the first
+   * point must then clear the hard-block against it, so a resumed stroke cannot
+   * begin at or behind where the previous one ended. */
+  constructor(
+    private readonly maxAbsSlope: number,
+    private readonly anchor: Point | null = null,
+  ) {}
 
-  /** Try to append `p`. The first point is always accepted; later ones only if
-   * they clear the hard-block against the last accepted point. Returns whether
-   * it was added. */
+  /** Try to append `p`. The first point is accepted unconditionally when drawing
+   * fresh, or gated against the anchor when resuming; later points are gated
+   * against the last accepted point. Returns whether it was added. */
   tryAdd(p: Point): boolean {
-    const last = this.points.at(-1);
+    const last = this.points.at(-1) ?? this.anchor;
     if (last && !withinSlopeCap(last, p, this.maxAbsSlope)) {
       return false;
     }

@@ -1,6 +1,6 @@
 import { canvasPixelSize } from "./dpr";
 import { installDrawing } from "./draw";
-import { fitStroke } from "./fit";
+import { extendStroke, fitStroke } from "./fit";
 import { visibleGridLines } from "./grid";
 import { worldToScreen, type Viewport } from "./viewport";
 
@@ -78,5 +78,8 @@ if (canvas) {
   const viewport = centeredViewport();
   const redrawBackground = () => drawPlane(ctx, viewport);
   redrawBackground();
-  installDrawing(canvas, ctx, viewport, MAX_SLOPE, redrawBackground, fitStroke);
+  installDrawing(canvas, ctx, viewport, MAX_SLOPE, redrawBackground, {
+    fit: fitStroke,
+    extend: extendStroke,
+  });
 }

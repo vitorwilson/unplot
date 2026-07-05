@@ -43,4 +43,12 @@ describe("StrokeBuilder", () => {
       { x: 2, y: 2 },
     ]);
   });
+
+  it("gates the first resumed point against the anchor", () => {
+    const stroke = new StrokeBuilder(5, { x: 2, y: 1 });
+    expect(stroke.tryAdd({ x: 1.5, y: 1 })).toBe(false); // behind the anchor
+    expect(stroke.tryAdd({ x: 2, y: 1 })).toBe(false); // exactly at the anchor
+    expect(stroke.tryAdd({ x: 2.5, y: 1.2 })).toBe(true); // ahead of it
+    expect(stroke.samples()).toEqual([{ x: 2.5, y: 1.2 }]);
+  });
 });

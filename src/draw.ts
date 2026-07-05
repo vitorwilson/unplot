@@ -1,3 +1,4 @@
+import type { FittedCurve } from "./fit";
 import { StrokeBuilder } from "./stroke";
 import {
   screenToWorld,
@@ -9,13 +10,20 @@ import {
 const STROKE_COLOR = "#1565c0";
 const STROKE_WIDTH = 2;
 
+/** How the surrounding app fits a drawn stroke through the Rust core: a fresh
+ * curve, or a C¹ resume of the existing one. */
+export interface StrokeFitter {
+  fit(samples: Point[]): Promise<FittedCurve>;
+  extend(existing: Point[], samples: Point[]): Promise<FittedCurve>;
+}
+
 /**
  * Install pointer-driven, hard-blocked freehand drawing on the canvas. The pen
  * physically cannot go backward in x or exceed the slope cap (the "wall").
- * `redrawBackground` repaints the plane; strokes are drawn over it.
  *
- * Fitting the captured samples into a smooth spline happens in the Rust core on
- * stroke end (a later increment); for now the raw hard-blocked polyline is shown.
+ * The whole drawing is one function, built left to right: the first stroke fits
+ * a new curve; each later stroke resumes it (lift the pen, pan, keep drawing),
+ * joining C¹ through the core. `redrawBackground` repaints the plane underneath.
  */
 export function installDrawing(
   canvas: HTMLCanvasElement,
@@ -23,9 +31,9 @@ export function installDrawing(
   vp: Viewport,
   maxAbsSlope: number,
   redrawBackground: () => void,
-  fitStroke: (samples: Point[]) => Promise<Point[]>,
+  fitter: StrokeFitter,
 ): void {
-  const committed: Point[][] = [];
+  let curve: FittedCurve | null = null;
   let active: StrokeBuilder | null = null;
 
   const eventToWorld = (event: PointerEvent): Point => {
@@ -38,8 +46,8 @@ export function installDrawing(
 
   const redraw = (): void => {
     redrawBackground();
-    for (const stroke of committed) {
-      drawPolyline(ctx, vp, stroke);
+    if (curve) {
+      drawPolyline(ctx, vp, curve.polyline);
     }
     if (active) {
       drawPolyline(ctx, vp, active.samples());
@@ -47,7 +55,10 @@ export function installDrawing(
   };
 
   canvas.addEventListener("pointerdown", (event) => {
-    active = new StrokeBuilder(maxAbsSlope);
+    // Resume from the previous curve's right endpoint, so the pen can't restart
+    // behind where it left off.
+    const anchor = curve ? (curve.knots.at(-1) ?? null) : null;
+    active = new StrokeBuilder(maxAbsSlope, anchor);
     active.tryAdd(eventToWorld(event));
     canvas.setPointerCapture(event.pointerId);
     redraw();
@@ -64,16 +75,22 @@ export function installDrawing(
       return;
     }
     const raw = [...active.samples()];
+    const existing = curve;
     active = null;
     canvas.releasePointerCapture(event.pointerId);
     redraw();
-    void fitStroke(raw)
-      .then((smooth) => {
-        committed.push(smooth);
+
+    const fitted = existing
+      ? fitter.extend(existing.knots, raw)
+      : fitter.fit(raw);
+    void fitted
+      .then((result) => {
+        curve = result;
         redraw();
       })
       .catch(() => {
-        // The core rejected the stroke (e.g. too few points); drop it.
+        // The core rejected the stroke (too few points, or a backward resume);
+        // keep the previous curve unchanged.
       });
   });
 }

@@ -38,3 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fit through the core (Phase 2): on stroke end the frontend sends samples to the
   Rust `fit_curve` command (resample → validate → fit) and renders the returned
   smooth spline (`Spline::polyline`) instead of the raw polyline.
+- Lift & resume (Phase 2): later strokes extend the current curve through the
+  `extend_curve` command, joining C¹; the pen hard-blocks against the previous
+  endpoint so a resumed stroke can't restart behind where it left off.
