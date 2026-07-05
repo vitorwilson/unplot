@@ -136,14 +136,14 @@ a smooth frame rate on all three platforms.
 
 **Goal:** reshape the curve before committing.
 
-- [ ] **Draggable knot points** → re-fit locally (Hermite locality means one drag
+- [x] **Draggable knot points** → re-fit locally (Hermite locality means one drag
   touches only neighboring segments), still hard-blocked (can't drag a point
   past its neighbors' x, can't create a spike).
-- [ ] **Draggable tangent handles** → override a knot's slope; this is the direct,
+- [x] **Draggable tangent handles** → override a knot's slope; this is the direct,
   intuitive "move the slope" interaction the representation was chosen for.
-- [ ] **Translate the whole curve** around the plane (offset all knots; re-derive
+- [x] **Translate the whole curve** around the plane (offset all knots; re-derive
   `[a, b]`).
-- [ ] Undo/redo for edits.
+- [x] Undo/redo for edits.
 
 **Done when:** every edit keeps the curve a valid C¹ function, and dragging feels
 immediate.
