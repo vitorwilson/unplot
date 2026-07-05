@@ -166,6 +166,31 @@ expanded.
 
 ---
 
+## Phase 4.5 — Export to Desmos & Wolfram
+
+**Goal:** copy the drawn function in a form that pastes straight into Desmos or
+Wolfram, so it can be reused elsewhere. A plain clipboard copy is enough — no
+API integration needed.
+
+Why separate from Phase 4: the existing "Copy LaTeX" hands over the raw
+`\begin{cases}` block, which **neither tool ingests as-is** — Desmos expects
+piecewise as `\left\{cond: expr, …\right\}`, and Wolfram expects
+`Piecewise[{{expr, cond}, …}]`. Each target needs its own serializer.
+
+- [ ] **Desmos format:** emit the piecewise curve as Desmos-compatible input
+  (`\left\{…\right\}` piecewise LaTeX) and copy it to the clipboard.
+- [ ] **Wolfram format:** emit `Piecewise[{{expr, cond}, …}]` in Wolfram Language
+  syntax and copy it to the clipboard.
+- [ ] **Format picker** beside the Copy button: choose the target (raw LaTeX /
+  Desmos / Wolfram); copy the chosen form.
+- [ ] Generated **deterministically from the engine** like the LaTeX output, and
+  headless-unit-tested per target format.
+
+**Done when:** pasting the copied string into Desmos or Wolfram reproduces the
+drawn curve.
+
+---
+
 ## Phase 5 — Calculus: differentiate & integrate
 
 **Goal:** one button turns the curve into its derivative or integral.
