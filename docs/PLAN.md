@@ -117,12 +117,12 @@ allowed.
 - [ ] Cartesian plane on **HTML5 Canvas 2D** (grid, axes, labels, zoom/pan). Mind
   the **Linux / WebKitGTK canvas-performance gotcha** — budget for it here,
   not in QA.
-- [ ] Pointer capture with **hard-block** wired to the Phase 1 validators: the line
+- [x] Pointer capture with **hard-block** wired to the Phase 1 validators: the line
   physically will not go backward in x, and will not form a spike (the pen
   "hits a wall").
-- [ ] **Lift & resume:** unclick, scroll/pan right/up/down, grab the end of the
+- [x] **Lift & resume:** unclick, scroll/pan right/up/down, grab the end of the
   line, keep drawing — new stroke joins C¹.
-- [ ] On stroke end, send samples to the Rust core (Tauri command) → receive the
+- [x] On stroke end, send samples to the Rust core (Tauri command) → receive the
   fitted spline → render it. **Fitting/validation live in Rust; rendering lives
   in the frontend.**
 - [ ] High-DPI correctness; consistent pointer handling across Win/macOS/Linux.
