@@ -14,6 +14,8 @@ pub enum CurveError {
     NonIncreasingX { index: usize, prev_x: f64, x: f64 },
     /// A coordinate was NaN or infinite.
     NonFiniteCoordinate { index: usize, x: f64, y: f64 },
+    /// A user-set tangent (slope) was NaN or infinite.
+    NonFiniteTangent { index: usize, tangent: f64 },
 }
 
 impl fmt::Display for CurveError {
@@ -28,6 +30,9 @@ impl fmt::Display for CurveError {
             ),
             CurveError::NonFiniteCoordinate { index, x, y } => {
                 write!(f, "knot {index} has a non-finite coordinate: ({x}, {y})")
+            }
+            CurveError::NonFiniteTangent { index, tangent } => {
+                write!(f, "knot {index} has a non-finite tangent: {tangent}")
             }
         }
     }

@@ -98,6 +98,11 @@ fn check_finite(knots: &[Knot]) -> Result<(), CurveError> {
                 y: knot.y,
             });
         }
+        if let Some(tangent) = knot.tangent {
+            if !tangent.is_finite() {
+                return Err(CurveError::NonFiniteTangent { index, tangent });
+            }
+        }
     }
     Ok(())
 }
@@ -195,6 +200,22 @@ mod tests {
         let curve = Curve::new(vec![Knot::new(0.0, 0.0), Knot::with_tangent(1.0, 1.0, 0.5)])
             .expect("valid knots");
         assert_eq!(curve.knots()[1].tangent, Some(0.5));
+    }
+
+    #[test]
+    fn rejects_non_finite_user_tangent() {
+        let err = Curve::new(vec![
+            Knot::new(0.0, 0.0),
+            Knot::with_tangent(1.0, 1.0, f64::NAN),
+        ])
+        .unwrap_err();
+        match err {
+            CurveError::NonFiniteTangent { index, tangent } => {
+                assert_eq!(index, 1);
+                assert!(tangent.is_nan());
+            }
+            other => panic!("expected NonFiniteTangent, got {other:?}"),
+        }
     }
 
     #[test]
