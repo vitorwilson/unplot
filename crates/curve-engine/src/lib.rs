@@ -11,12 +11,23 @@
 
 #![forbid(unsafe_code)]
 
+/// Version of the curve engine, surfaced to the UI shell so it can show which
+/// core build it is running against.
+///
+/// # Example
+/// ```
+/// assert!(!curve_engine::engine_version().is_empty());
+/// ```
+pub fn engine_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
 #[cfg(test)]
 mod tests {
-    /// Phase 0 smoke test: proves the crate compiles, links, and runs under the
-    /// test harness. Replaced by the real engine tests in Phase 1.
+    use super::engine_version;
+
     #[test]
-    fn crate_compiles_and_links() {
-        assert_eq!(2 + 2, 4);
+    fn engine_version_matches_crate_version() {
+        assert_eq!(engine_version(), env!("CARGO_PKG_VERSION"));
     }
 }

@@ -2,4 +2,4 @@
 # under src-tauri/ once the app shell lands (see docs/PLAN.md, Phase 0).
 [workspace]
 resolver = "2"
-members = ["crates/curve-engine"]
+members = ["crates/curve-engine", "src-tauri"]
