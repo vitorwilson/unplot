@@ -20,6 +20,7 @@ export function installViewportControls(
   canvas: HTMLCanvasElement,
   vp: Viewport,
   redraw: () => void,
+  isPanModifier: () => boolean,
 ): void {
   const localPoint = (event: { clientX: number; clientY: number }) => {
     const rect = canvas.getBoundingClientRect();
@@ -43,7 +44,11 @@ export function installViewportControls(
   let panning: { x: number; y: number } | null = null;
 
   canvas.addEventListener("pointerdown", (event) => {
-    if (event.button !== PAN_BUTTON) {
+    // Pan with the right button (mouse) or Space + left button (trackpad-friendly:
+    // one-finger drag while a modifier is held). Left-drag alone still draws.
+    const wantsPan =
+      event.button === PAN_BUTTON || (event.button === 0 && isPanModifier());
+    if (!wantsPan) {
       return;
     }
     event.preventDefault();
@@ -62,7 +67,7 @@ export function installViewportControls(
   });
 
   canvas.addEventListener("pointerup", (event) => {
-    if (event.button !== PAN_BUTTON || !panning) {
+    if (!panning) {
       return;
     }
     panning = null;

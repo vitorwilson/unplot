@@ -144,6 +144,25 @@ if (canvas) {
     toggle.addEventListener("click", () => theme.toggle());
   }
 
+  // Hold Space to pan by left-dragging — the trackpad-friendly alternative to
+  // right-drag. Ignored while a form control (the theme button) has focus so it
+  // doesn't hijack the button's own Space activation.
+  const panKey = { held: false };
+  const isPanModifier = () => panKey.held;
+  window.addEventListener("keydown", (event) => {
+    if (event.code === "Space" && event.target === document.body) {
+      panKey.held = true;
+      canvas.style.cursor = "grab";
+      event.preventDefault();
+    }
+  });
+  window.addEventListener("keyup", (event) => {
+    if (event.code === "Space") {
+      panKey.held = false;
+      canvas.style.cursor = "";
+    }
+  });
+
   const redrawBackground = () => drawPlane(ctx, viewport, theme.colors());
   redrawBackground();
   const { redraw } = installDrawing(
@@ -154,13 +173,14 @@ if (canvas) {
     redrawBackground,
     { fit: fitStroke, extend: extendStroke, refit: refitCurve },
     () => theme.colors(),
+    isPanModifier,
   );
   repaint = redraw;
-  installViewportControls(canvas, viewport, redraw);
+  installViewportControls(canvas, viewport, redraw, isPanModifier);
 
   const hint = document.querySelector("#controls-hint");
   if (hint) {
     hint.textContent =
-      "Left-drag: draw · Drag a dot: move a point · Right-drag: pan · Wheel: zoom";
+      "Left-drag: draw · Drag a dot: move a point · Space/Right-drag: pan · Wheel: zoom";
   }
 }
