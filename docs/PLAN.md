@@ -54,7 +54,8 @@ These are settled. Don't re-litigate them in code without raising it first.
   by default** ("N-segment spline — expand"), fully expandable.
 - **"Prettier function":** a real roadmap pillar (Phase 7), attempting a compact
   closed form. Preferred by the user *when it's trustworthy* — so it's **error-
-  gated** and always falls back to the exact piecewise output.
+  gated** and always falls back to the exact piecewise output. Built
+  **FOSS-only — no Symbolica** (see Phase 7).
 - **Stack:** Tauri v2 · headless Rust core · web frontend (Canvas 2D + KaTeX) ·
   versioned JSON document format.
 
@@ -226,11 +227,14 @@ first:
 - [ ] **Always compute and display fit error** (max and RMS over `[a, b]`). Only
   *offer* the pretty form when error is below a threshold; otherwise stay silent
   and keep the piecewise output. Never present an approximation as exact.
-- [ ] **Licensing gate:** if a Rust CAS is used for simplification, check the license
-  (Symbolica is **not** free for all uses); prefer an
-  open-source CAS or a Python sidecar (SymPy / PySR). Wrap any third-party
-  symbolic library behind the core's own interface so the rest of the engine
-  doesn't depend on which library is behind it.
+- [ ] **FOSS-only — Symbolica is banned.** This is a public, redistributed repo, so
+  the symbolic layer uses only permissively-licensed tools: pure-Rust numerical
+  fitting (`nalgebra` / `ndarray`) for the steps above, and — only if
+  named-function recognition is added — an open-source CAS (`cas-rs`) or a
+  SymPy (BSD) / PySR (Apache-2.0) Python sidecar. Symbolica is source-available
+  (not open-source), paid beyond hobbyist use, and its redistribution needs
+  written permission — disqualifying here. Wrap any symbolic library behind the
+  core's own interface so the engine never depends on which one is behind it.
 
 **Done when:** for curves that genuinely are simple functions, the app proposes a
 clean form with an honest error readout; for arbitrary squiggles it degrades
