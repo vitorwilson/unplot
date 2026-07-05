@@ -85,21 +85,21 @@ on the first commit.
 **Goal:** given sample points, produce the canonical spline and evaluate it —
 entirely in Rust, entirely tested, no UI.
 
-- [ ] **Data model:** ordered `Knot { x, y, tangent }`, x **strictly increasing**
+- [x] **Data model:** ordered `Knot { x, y, tangent }`, x **strictly increasing**
   (enforced at the constructor — reject any insert that violates it), plus the
   derived per-segment cubic coefficients and `domain = [x_first, x_last]`.
-- [ ] **Fit:** compute Fritsch–Carlson tangents from the knots → shape-preserving
+- [x] **Fit:** compute Fritsch–Carlson tangents from the knots → shape-preserving
   C¹ Hermite spline, no overshoot. A user-set tangent overrides the computed one
   at that knot (this is what powers the drag-the-slope feature later).
-- [ ] **Resample noisy input:** turn a few hundred non-uniform mouse samples into a
+- [x] **Resample noisy input:** turn a few hundred non-uniform mouse samples into a
   clean, minimal set of knots (e.g. arc-length / curvature-based thinning), so
   the spline is faithful but not overfit to jitter.
-- [ ] **Evaluate** `f(x)` on `[a, b]`; define behavior at/just-outside the boundary
+- [x] **Evaluate** `f(x)` on `[a, b]`; define behavior at/just-outside the boundary
   (clamp to domain, no extrapolation).
-- [ ] **Hard-block validators (pure functions, reused by the UI later):** "is this
+- [x] **Hard-block validators (pure functions, reused by the UI later):** "is this
   next sample's x strictly greater?", "does this slope exceed the spike
   threshold?", "does this edit keep x strictly increasing?"
-- [ ] **C¹ join on resume:** appending a segment snaps its starting tangent to the
+- [x] **C¹ join on resume:** appending a segment snaps its starting tangent to the
   previous segment's ending tangent.
 
 **Done when:** property tests confirm C¹ continuity across every join, strictly
