@@ -1,5 +1,6 @@
 import type { FittedCurve } from "./fit";
 import { StrokeBuilder } from "./stroke";
+import type { CanvasColors } from "./theme";
 import {
   screenToWorld,
   worldToScreen,
@@ -7,7 +8,6 @@ import {
   type Viewport,
 } from "./viewport";
 
-const STROKE_COLOR = "#1565c0";
 const STROKE_WIDTH = 2;
 
 /** How the surrounding app fits a drawn stroke through the Rust core: a fresh
@@ -32,6 +32,7 @@ export function installDrawing(
   maxAbsSlope: number,
   redrawBackground: () => void,
   fitter: StrokeFitter,
+  colorsOf: () => CanvasColors,
 ): { redraw: () => void } {
   let curve: FittedCurve | null = null;
   let active: StrokeBuilder | null = null;
@@ -46,11 +47,12 @@ export function installDrawing(
 
   const redraw = (): void => {
     redrawBackground();
+    const curveColor = colorsOf().curve;
     if (curve) {
-      drawPolyline(ctx, vp, curve.polyline);
+      drawPolyline(ctx, vp, curve.polyline, curveColor);
     }
     if (active) {
-      drawPolyline(ctx, vp, active.samples());
+      drawPolyline(ctx, vp, active.samples(), curveColor);
     }
   };
 
@@ -105,11 +107,12 @@ function drawPolyline(
   ctx: CanvasRenderingContext2D,
   vp: Viewport,
   points: readonly Point[],
+  color: string,
 ): void {
   if (points.length < 2) {
     return;
   }
-  ctx.strokeStyle = STROKE_COLOR;
+  ctx.strokeStyle = color;
   ctx.lineWidth = STROKE_WIDTH;
   ctx.beginPath();
   const start = worldToScreen(vp, points[0]);

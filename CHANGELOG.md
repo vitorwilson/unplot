@@ -47,3 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Centered, styled layout (`styles.css`): the plane sits centered as a white
   panel with a title and an on-screen controls hint, replacing the unstyled
   left-aligned page.
+- Light/dark theming (cross-cutting foundation): shared color tokens for both the
+  CSS chrome and the Canvas 2D surfaces (grid, axes, labels, curve, edit handles),
+  a persisted toggle, and a system-preference default. Every later phase's UI is
+  theme-aware by construction.

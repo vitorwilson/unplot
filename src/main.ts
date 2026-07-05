@@ -4,6 +4,7 @@ import { installDrawing } from "./draw";
 import { extendStroke, fitStroke } from "./fit";
 import { tickStep, visibleGridLines } from "./grid";
 import { installViewportControls } from "./navigate";
+import { installTheme, type CanvasColors } from "./theme";
 import { worldToScreen, type Viewport } from "./viewport";
 
 // Phase 2: a Cartesian plane on Canvas 2D — grid, axes, labels, wheel-zoom and
@@ -12,9 +13,6 @@ import { worldToScreen, type Viewport } from "./viewport";
 const CSS_WIDTH = 640;
 const CSS_HEIGHT = 480;
 const TARGET_GRID_PX = 64; // aim for ~this many pixels between gridlines
-const GRID_COLOR = "#e3e3e3";
-const AXIS_COLOR = "#8a8a8a";
-const LABEL_COLOR = "#5a5a5a";
 const LABEL_FONT = "11px sans-serif";
 // Spike cap for the drawing hard-block, in world units of |dy/dx|.
 const MAX_SLOPE = 50;
@@ -42,8 +40,9 @@ function drawGrid(
   ctx: CanvasRenderingContext2D,
   vp: Viewport,
   step: number,
+  color: string,
 ): void {
-  ctx.strokeStyle = GRID_COLOR;
+  ctx.strokeStyle = color;
   ctx.lineWidth = 1;
   const { xs, ys } = visibleGridLines(vp, CSS_WIDTH, CSS_HEIGHT, step);
   for (const wx of xs) {
@@ -62,9 +61,13 @@ function drawGrid(
   }
 }
 
-function drawAxes(ctx: CanvasRenderingContext2D, vp: Viewport): void {
+function drawAxes(
+  ctx: CanvasRenderingContext2D,
+  vp: Viewport,
+  color: string,
+): void {
   const origin = worldToScreen(vp, { x: 0, y: 0 });
-  ctx.strokeStyle = AXIS_COLOR;
+  ctx.strokeStyle = color;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(0, origin.y);
@@ -79,6 +82,7 @@ function drawLabels(
   ctx: CanvasRenderingContext2D,
   vp: Viewport,
   step: number,
+  color: string,
 ): void {
   const { xs, ys } = visibleGridLines(vp, CSS_WIDTH, CSS_HEIGHT, step);
   const origin = worldToScreen(vp, { x: 0, y: 0 });
@@ -87,7 +91,7 @@ function drawLabels(
   const clamp = (v: number, lo: number, hi: number) =>
     Math.min(Math.max(v, lo), hi);
 
-  ctx.fillStyle = LABEL_COLOR;
+  ctx.fillStyle = color;
   ctx.font = LABEL_FONT;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -108,19 +112,39 @@ function drawLabels(
   }
 }
 
-function drawPlane(ctx: CanvasRenderingContext2D, vp: Viewport): void {
+function drawPlane(
+  ctx: CanvasRenderingContext2D,
+  vp: Viewport,
+  colors: CanvasColors,
+): void {
   const step = tickStep(vp.scale, TARGET_GRID_PX);
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
-  drawGrid(ctx, vp, step);
-  drawAxes(ctx, vp);
-  drawLabels(ctx, vp, step);
+  drawGrid(ctx, vp, step, colors.grid);
+  drawAxes(ctx, vp, colors.axis);
+  drawLabels(ctx, vp, step, colors.label);
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
 if (canvas) {
   const ctx = setupCanvas(canvas);
   const viewport = centeredViewport();
-  const redrawBackground = () => drawPlane(ctx, viewport);
+
+  const toggle = document.querySelector<HTMLButtonElement>("#theme-toggle");
+  // `repaint` is filled in once installDrawing returns its redraw; the theme's
+  // onChange closes over it so toggling recolors the canvas too.
+  let repaint = () => {};
+  const theme = installTheme((next) => {
+    if (toggle) {
+      toggle.textContent = next === "dark" ? "☀ Light" : "☾ Dark";
+    }
+    repaint();
+  });
+  if (toggle) {
+    toggle.textContent = theme.current() === "dark" ? "☀ Light" : "☾ Dark";
+    toggle.addEventListener("click", () => theme.toggle());
+  }
+
+  const redrawBackground = () => drawPlane(ctx, viewport, theme.colors());
   redrawBackground();
   const { redraw } = installDrawing(
     canvas,
@@ -129,7 +153,9 @@ if (canvas) {
     MAX_SLOPE,
     redrawBackground,
     { fit: fitStroke, extend: extendStroke },
+    () => theme.colors(),
   );
+  repaint = redraw;
   installViewportControls(canvas, viewport, redraw);
 
   const hint = document.querySelector("#controls-hint");
