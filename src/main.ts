@@ -1,7 +1,7 @@
 import "./styles.css";
 import { canvasPixelSize } from "./dpr";
 import { installDrawing } from "./draw";
-import { extendStroke, fitStroke } from "./fit";
+import { extendStroke, fitStroke, refitCurve } from "./fit";
 import { tickStep, visibleGridLines } from "./grid";
 import { installViewportControls } from "./navigate";
 import { installTheme, type CanvasColors } from "./theme";
@@ -152,7 +152,7 @@ if (canvas) {
     viewport,
     MAX_SLOPE,
     redrawBackground,
-    { fit: fitStroke, extend: extendStroke },
+    { fit: fitStroke, extend: extendStroke, refit: refitCurve },
     () => theme.colors(),
   );
   repaint = redraw;
@@ -160,6 +160,7 @@ if (canvas) {
 
   const hint = document.querySelector("#controls-hint");
   if (hint) {
-    hint.textContent = "Left-drag: draw · Right-drag: pan · Wheel: zoom";
+    hint.textContent =
+      "Left-drag: draw · Drag a dot: move a point · Right-drag: pan · Wheel: zoom";
   }
 }

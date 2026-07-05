@@ -54,3 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Editing foundation (Phase 3): knots now carry their tangents across IPC, a
   `refit_curve` command re-fits edited knots without resampling, knot points are
   drawn as grab dots, and `nearestKnot` hit-tests them in screen space.
+- Draggable knot points (Phase 3): grab a knot dot and drag to reshape the curve,
+  re-fitting live through the core. `clampKnotDrag` hard-blocks the drag — a knot
+  can't cross a neighbor's x or exceed the slope cap — so the curve stays a valid
+  function throughout.

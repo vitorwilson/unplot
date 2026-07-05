@@ -30,3 +30,44 @@ export function nearestKnot(
   });
   return best;
 }
+
+// Keep a moved knot strictly between its neighbors' x by this fraction of the
+// gap, so the curve stays a valid (strictly-increasing) function during a drag.
+const X_MARGIN = 1e-3;
+
+/**
+ * Clamp a drag `target` for the knot at `index` so the curve stays valid: x is
+ * held strictly between the neighbors' x, and y is limited so the slope to each
+ * neighbor never exceeds `maxSlope` (the no-spike hard-block, applied to edits).
+ * Endpoints are constrained only by their single inner neighbor.
+ */
+export function clampKnotDrag(
+  knots: readonly Knot[],
+  index: number,
+  target: Point,
+  maxSlope: number,
+): Point {
+  const prev = knots[index - 1];
+  const next = knots[index + 1];
+  const x = clamp(
+    target.x,
+    prev ? prev.x + X_MARGIN * (next ? next.x - prev.x : 1) : -Infinity,
+    next ? next.x - X_MARGIN * (prev ? next.x - prev.x : 1) : Infinity,
+  );
+
+  let yLo = -Infinity;
+  let yHi = Infinity;
+  for (const neighbor of [prev, next]) {
+    if (!neighbor) {
+      continue;
+    }
+    const reach = maxSlope * Math.abs(x - neighbor.x);
+    yLo = Math.max(yLo, neighbor.y - reach);
+    yHi = Math.min(yHi, neighbor.y + reach);
+  }
+  return { x, y: clamp(target.y, yLo, yHi) };
+}
+
+function clamp(value: number, lo: number, hi: number): number {
+  return Math.min(Math.max(value, lo), hi);
+}
