@@ -146,7 +146,7 @@ if (canvas) {
 
   const redrawBackground = () => drawPlane(ctx, viewport, theme.colors());
   redrawBackground();
-  const { redraw } = installDrawing(
+  const { redraw, undo, redo } = installDrawing(
     canvas,
     ctx,
     viewport,
@@ -158,9 +158,28 @@ if (canvas) {
   repaint = redraw;
   installViewportControls(canvas, viewport, redraw);
 
+  // Undo/redo: Ctrl/Cmd+Z, and Ctrl/Cmd+Shift+Z or Ctrl+Y to redo.
+  window.addEventListener("keydown", (event) => {
+    if (!event.ctrlKey && !event.metaKey) {
+      return;
+    }
+    const key = event.key.toLowerCase();
+    if (key === "z") {
+      event.preventDefault();
+      if (event.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+    } else if (key === "y") {
+      event.preventDefault();
+      redo();
+    }
+  });
+
   const hint = document.querySelector("#controls-hint");
   if (hint) {
     hint.textContent =
-      "Draw: left-drag · Edit: drag a dot or handle · Move: drag the curve · Pan: two-finger or right-drag · Zoom: pinch or Ctrl-scroll";
+      "Draw: left-drag · Edit: drag a dot or handle · Move: drag the curve · Undo: Ctrl+Z · Pan: two-finger · Zoom: pinch";
   }
 }

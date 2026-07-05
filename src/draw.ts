@@ -8,6 +8,7 @@ import {
   tangentHandleEnd,
 } from "./edit";
 import type { FittedCurve, Knot } from "./fit";
+import { History } from "./history";
 import { StrokeBuilder } from "./stroke";
 import type { CanvasColors } from "./theme";
 import {
@@ -50,16 +51,21 @@ export function installDrawing(
   redrawBackground: () => void,
   fitter: StrokeFitter,
   colorsOf: () => CanvasColors,
-): { redraw: () => void } {
+): { redraw: () => void; undo: () => void; redo: () => void } {
   let curve: FittedCurve | null = null;
   let active: StrokeBuilder | null = null;
   let dragKind: DragKind | null = null;
   let dragIndex: number | null = null;
   let dragKnots: Knot[] | null = null;
+  // Whether the current drag actually moved, so a click that doesn't move adds
+  // no history entry and skips a pointless re-fit.
+  let dragMoved = false;
   // Translate state: the curve as grabbed and the world point where the drag
   // began. Offsetting is exact, so no re-fit is involved.
   let translateBase: FittedCurve | null = null;
   let translateStart: Point | null = null;
+  // Undo/redo over committed curve states; `null` is the empty canvas.
+  const history = new History<FittedCurve | null>(null);
   // Monotonic token so out-of-order refit responses during a fast drag are
   // ignored — only the latest applies.
   let refitToken = 0;
@@ -124,6 +130,7 @@ export function installDrawing(
     dragKind = onHandle !== null ? "tangent" : "knot";
     dragIndex = hit;
     dragKnots = curve.knots.map((knot) => ({ ...knot }));
+    dragMoved = false;
     canvas.setPointerCapture(event.pointerId);
     return true;
   };
@@ -132,6 +139,7 @@ export function installDrawing(
     if (dragIndex === null || !dragKnots) {
       return false;
     }
+    dragMoved = true;
     if (dragKind === "tangent") {
       const knotScreen = worldToScreen(vp, dragKnots[dragIndex]);
       const slope = slopeFromHandleDrag(
@@ -159,12 +167,20 @@ export function installDrawing(
       return false;
     }
     canvas.releasePointerCapture(event.pointerId);
+    if (!dragMoved) {
+      // A click that didn't move — nothing changed, so don't re-fit or record it.
+      dragKind = null;
+      dragIndex = null;
+      dragKnots = null;
+      return true;
+    }
     applyRefit(
       dragKnots.map((knot) => ({ ...knot })),
       () => {
         dragKind = null;
         dragIndex = null;
         dragKnots = null;
+        history.push(curve);
       },
     );
     return true;
@@ -181,6 +197,7 @@ export function installDrawing(
     dragKind = "translate";
     translateBase = curve;
     translateStart = eventToWorld(event);
+    dragMoved = false;
     canvas.setPointerCapture(event.pointerId);
     return true;
   };
@@ -189,6 +206,7 @@ export function installDrawing(
     if (dragKind !== "translate" || !translateBase || !translateStart) {
       return false;
     }
+    dragMoved = true;
     const now = eventToWorld(event);
     curve = offsetCurve(
       translateBase,
@@ -204,6 +222,9 @@ export function installDrawing(
       return false;
     }
     canvas.releasePointerCapture(event.pointerId);
+    if (dragMoved) {
+      history.push(curve);
+    }
     dragKind = null;
     translateBase = null;
     translateStart = null;
@@ -235,6 +256,7 @@ export function installDrawing(
     void fitted
       .then((result) => {
         curve = result;
+        history.push(curve);
         redraw();
       })
       .catch(() => {
@@ -270,7 +292,23 @@ export function installDrawing(
     endStroke(event);
   });
 
-  return { redraw };
+  // Restore a history state, abandoning any in-progress stroke or drag.
+  const restore = (state: FittedCurve | null): void => {
+    curve = state;
+    active = null;
+    dragKind = null;
+    dragIndex = null;
+    dragKnots = null;
+    translateBase = null;
+    translateStart = null;
+    redraw();
+  };
+
+  return {
+    redraw,
+    undo: () => restore(history.undo()),
+    redo: () => restore(history.redo()),
+  };
 }
 
 function drawPolyline(

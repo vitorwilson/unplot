@@ -72,3 +72,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handle) and drag to move all knots together. A rigid translation preserves the
   shape exactly, so the knots and polyline shift locally with no re-fit
   (`offsetCurve`); `nearPolyline` hit-tests the curve body.
+- Undo/redo (Phase 3): Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z or Ctrl+Y redoes
+  every committed change — draw, resume, point/tangent edit, translate — over a
+  snapshot `History`. A click that doesn't move records nothing.
