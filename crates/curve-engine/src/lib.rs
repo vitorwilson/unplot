@@ -14,10 +14,12 @@
 mod curve;
 mod error;
 mod knot;
+mod spline;
 
 pub use curve::Curve;
 pub use error::CurveError;
 pub use knot::Knot;
+pub use spline::{Segment, Spline};
 
 /// Version of the curve engine, surfaced to the UI shell so it can show which
 /// core build it is running against.

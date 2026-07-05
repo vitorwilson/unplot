@@ -1,5 +1,6 @@
 use crate::error::CurveError;
 use crate::knot::Knot;
+use crate::spline::{fit_spline, Spline};
 
 /// An editable, single-valued curve: knots ordered left to right with strictly
 /// increasing x.
@@ -39,6 +40,21 @@ impl Curve {
     /// The knots, left to right.
     pub fn knots(&self) -> &[Knot] {
         &self.knots
+    }
+
+    /// Fit the shape-preserving cubic Hermite spline for this curve. Cheap and
+    /// deterministic — call it whenever the knots change.
+    ///
+    /// # Example
+    /// ```
+    /// use curve_engine::{Curve, Knot};
+    /// let spline = Curve::new(vec![Knot::new(0.0, 0.0), Knot::new(1.0, 1.0)])
+    ///     .unwrap()
+    ///     .fit();
+    /// assert_eq!(spline.domain(), (0.0, 1.0));
+    /// ```
+    pub fn fit(&self) -> Spline {
+        fit_spline(&self.knots)
     }
 }
 

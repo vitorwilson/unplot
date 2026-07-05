@@ -18,3 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `engine_version` command, establishing the frontend → shell → core path.
 - `just` task runner (`dev`/`build`/`test`/`lint`/`fmt`/`audit`) and GitHub
   Actions CI running the full formatter/linter/test/audit suite on every push.
+- Curve engine (Phase 1): a validated `Knot`/`Curve` model plus shape-preserving
+  PCHIP spline fitting (`Curve::fit`) and domain-clamped evaluation
+  (`Spline::eval`) — C¹ across joins, no overshoot, headless and unit-tested.
