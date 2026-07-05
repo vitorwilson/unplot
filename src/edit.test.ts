@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { clampKnotDrag, nearestKnot } from "./edit";
+import {
+  clampKnotDrag,
+  nearestKnot,
+  nearestTangentHandle,
+  slopeFromHandleDrag,
+  tangentHandleEnd,
+} from "./edit";
 import type { Knot } from "./fit";
 import { worldToScreen, type Viewport } from "./viewport";
 
 const vp: Viewport = { originX: 320, originY: 240, scale: 40 };
-const knot = (x: number, y: number): Knot => ({ x, y, tangent: null });
+const knot = (x: number, y: number, slope = 0): Knot => ({
+  x,
+  y,
+  tangent: null,
+  slope,
+});
 
 describe("nearestKnot", () => {
   const knots = [knot(0, 0), knot(1, 1), knot(2, -1)];
@@ -63,5 +74,54 @@ describe("clampKnotDrag", () => {
     const clamped = clampKnotDrag(knots, 1, { x: 1.2, y: 0.3 }, 1000);
     expect(clamped.x).toBeCloseTo(1.2);
     expect(clamped.y).toBeCloseTo(0.3);
+  });
+});
+
+describe("tangentHandleEnd", () => {
+  it("points straight right for a flat slope", () => {
+    const base = worldToScreen(vp, knot(0, 0));
+    const end = tangentHandleEnd(knot(0, 0, 0), vp, 40);
+    expect(end.x).toBeCloseTo(base.x + 40);
+    expect(end.y).toBeCloseTo(base.y);
+  });
+
+  it("points up-right for a positive slope (screen y flipped)", () => {
+    const base = worldToScreen(vp, knot(0, 0));
+    const end = tangentHandleEnd(knot(0, 0, 1), vp, 40);
+    expect(end.x).toBeGreaterThan(base.x);
+    expect(end.y).toBeLessThan(base.y); // up on screen
+  });
+});
+
+describe("nearestTangentHandle", () => {
+  it("finds the handle end under the pointer", () => {
+    const knots = [knot(0, 0, 0), knot(2, 0, 0)];
+    const end = tangentHandleEnd(knots[1], vp, 40);
+    expect(nearestTangentHandle(knots, vp, end, 40, 8)).toBe(1);
+  });
+
+  it("returns null when the pointer is far from every handle", () => {
+    const knots = [knot(0, 0, 0)];
+    expect(
+      nearestTangentHandle(knots, vp, { x: 999, y: 999 }, 40, 8),
+    ).toBeNull();
+  });
+});
+
+describe("slopeFromHandleDrag", () => {
+  const origin = { x: 100, y: 100 };
+
+  it("maps an up-and-right drag to a positive slope", () => {
+    expect(slopeFromHandleDrag(origin, { x: 140, y: 60 }, 1000)).toBeCloseTo(1);
+  });
+
+  it("maps a down-and-right drag to a negative slope", () => {
+    expect(slopeFromHandleDrag(origin, { x: 140, y: 140 }, 1000)).toBeCloseTo(
+      -1,
+    );
+  });
+
+  it("clamps to the slope cap", () => {
+    expect(slopeFromHandleDrag(origin, { x: 101, y: -900 }, 5)).toBe(5);
   });
 });

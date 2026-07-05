@@ -90,6 +90,16 @@ impl Spline {
         b + 2.0 * c * h + 3.0 * d * h * h
     }
 
+    /// Slope at each knot, left to right (one per knot). The interior/left values
+    /// are each segment's starting slope; the last is the domain's end slope.
+    /// C¹ continuity means these are the unambiguous slopes at the joins — used to
+    /// render the draggable tangent handles.
+    pub fn knot_slopes(&self) -> Vec<f64> {
+        let mut slopes: Vec<f64> = self.segments.iter().map(|s| s.coeffs[1]).collect();
+        slopes.push(self.end_slope());
+        slopes
+    }
+
     /// Sample the spline at `count` evenly spaced x across the domain, for
     /// rendering the smooth curve. `count` is clamped to at least 2.
     pub fn polyline(&self, count: usize) -> Vec<(f64, f64)> {
@@ -201,6 +211,20 @@ mod tests {
         let spline = fit(vec![Knot::new(0.0, 0.0), Knot::new(2.0, 4.0)]);
         assert_close(spline.start_slope(), 2.0);
         assert_close(spline.end_slope(), 2.0);
+    }
+
+    #[test]
+    fn knot_slopes_of_a_line_are_all_the_gradient() {
+        let spline = fit(vec![
+            Knot::new(0.0, 0.0),
+            Knot::new(1.0, 2.0),
+            Knot::new(2.0, 4.0),
+        ]);
+        let slopes = spline.knot_slopes();
+        assert_eq!(slopes.len(), 3);
+        for slope in slopes {
+            assert_close(slope, 2.0);
+        }
     }
 
     #[test]

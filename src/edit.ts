@@ -71,3 +71,65 @@ export function clampKnotDrag(
 function clamp(value: number, lo: number, hi: number): number {
   return Math.min(Math.max(value, lo), hi);
 }
+
+// A tangent handle can't point straight up (infinite slope); keep its screen dx
+// at least this many pixels so a near-vertical drag maps to a large finite slope
+// (then clamped to the cap).
+const MIN_HANDLE_DX = 4;
+
+/**
+ * Screen position of a knot's tangent-handle end: `lengthPx` from the knot along
+ * its slope direction (forward in x). Screen y is flipped, so a positive slope
+ * points up-right.
+ */
+export function tangentHandleEnd(
+  knot: Knot,
+  vp: Viewport,
+  lengthPx: number,
+): Point {
+  const base = worldToScreen(vp, knot);
+  const dx = 1;
+  const dy = -knot.slope; // world (1, slope) with the screen y axis flipped
+  const norm = Math.hypot(dx, dy);
+  return {
+    x: base.x + (dx / norm) * lengthPx,
+    y: base.y + (dy / norm) * lengthPx,
+  };
+}
+
+/** Index of the knot whose tangent-handle end is under `screen` within
+ * `radiusPx`, or `null`. Checked before knot hit-testing so the handle wins. */
+export function nearestTangentHandle(
+  knots: readonly Knot[],
+  vp: Viewport,
+  screen: Point,
+  lengthPx: number,
+  radiusPx: number,
+): number | null {
+  let best: number | null = null;
+  let bestDist = radiusPx;
+  knots.forEach((knot, index) => {
+    const end = tangentHandleEnd(knot, vp, lengthPx);
+    const dist = Math.hypot(end.x - screen.x, end.y - screen.y);
+    if (dist <= bestDist) {
+      bestDist = dist;
+      best = index;
+    }
+  });
+  return best;
+}
+
+/**
+ * Slope implied by dragging a tangent handle to `pointer`, given its knot's
+ * screen position. The handle is kept pointing forward in x, and the result is
+ * clamped to ±`maxSlope` (the no-spike rule applied to slope edits).
+ */
+export function slopeFromHandleDrag(
+  knotScreen: Point,
+  pointer: Point,
+  maxSlope: number,
+): number {
+  const dx = Math.max(pointer.x - knotScreen.x, MIN_HANDLE_DX);
+  const dy = pointer.y - knotScreen.y;
+  return clamp(-dy / dx, -maxSlope, maxSlope); // screen y flipped
+}

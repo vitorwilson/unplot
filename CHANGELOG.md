@@ -64,3 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   re-fitting live through the core. `clampKnotDrag` hard-blocks the drag — a knot
   can't cross a neighbor's x or exceed the slope cap — so the curve stays a valid
   function throughout.
+- Draggable tangent handles (Phase 3): each knot shows a handle at its slope;
+  drag the tip to set the slope directly (the "move the slope" interaction).
+  The engine reports the effective slope per knot (`Spline::knot_slopes`), and
+  the drag is clamped to the slope cap.

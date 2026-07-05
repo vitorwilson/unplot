@@ -1,4 +1,10 @@
-import { clampKnotDrag, nearestKnot } from "./edit";
+import {
+  clampKnotDrag,
+  nearestKnot,
+  nearestTangentHandle,
+  slopeFromHandleDrag,
+  tangentHandleEnd,
+} from "./edit";
 import type { FittedCurve, Knot } from "./fit";
 import { StrokeBuilder } from "./stroke";
 import type { CanvasColors } from "./theme";
@@ -12,6 +18,10 @@ import {
 const STROKE_WIDTH = 2;
 const KNOT_RADIUS = 4;
 const GRAB_RADIUS = 10; // px within which a click grabs a knot to drag it
+const HANDLE_LEN = 36; // px length of a tangent handle
+const HANDLE_END_RADIUS = 3; // px radius of the draggable handle tip
+
+type DragKind = "knot" | "tangent";
 
 /** How the surrounding app fits strokes through the Rust core: a fresh curve, a
  * C¹ resume of the existing one, or a re-fit of edited knots. */
@@ -41,6 +51,7 @@ export function installDrawing(
 ): { redraw: () => void } {
   let curve: FittedCurve | null = null;
   let active: StrokeBuilder | null = null;
+  let dragKind: DragKind | null = null;
   let dragIndex: number | null = null;
   let dragKnots: Knot[] | null = null;
   // Monotonic token so out-of-order refit responses during a fast drag are
@@ -59,7 +70,9 @@ export function installDrawing(
     const colors = colorsOf();
     if (curve) {
       drawPolyline(ctx, vp, curve.polyline, colors.curve);
-      drawKnots(ctx, vp, dragKnots ?? curve.knots, colors.handle);
+      const knots = dragKnots ?? curve.knots;
+      drawTangentHandles(ctx, vp, knots, colors.handle);
+      drawKnots(ctx, vp, knots, colors.handle);
     }
     if (active) {
       drawPolyline(ctx, vp, active.samples(), colors.curve);
@@ -84,37 +97,58 @@ export function installDrawing(
       .catch(() => finish(null));
   };
 
-  const beginKnotDrag = (event: PointerEvent): boolean => {
+  // A tangent handle (if grabbed) takes precedence over its knot, which sits at
+  // the handle's base.
+  const beginEditDrag = (event: PointerEvent): boolean => {
     if (!curve) {
       return false;
     }
-    const hit = nearestKnot(curve.knots, vp, eventToScreen(event), GRAB_RADIUS);
+    const screen = eventToScreen(event);
+    const onHandle = nearestTangentHandle(
+      curve.knots,
+      vp,
+      screen,
+      HANDLE_LEN,
+      GRAB_RADIUS,
+    );
+    const hit = onHandle ?? nearestKnot(curve.knots, vp, screen, GRAB_RADIUS);
     if (hit === null) {
       return false;
     }
+    dragKind = onHandle !== null ? "tangent" : "knot";
     dragIndex = hit;
     dragKnots = curve.knots.map((knot) => ({ ...knot }));
     canvas.setPointerCapture(event.pointerId);
     return true;
   };
 
-  const moveKnotDrag = (event: PointerEvent): boolean => {
+  const moveEditDrag = (event: PointerEvent): boolean => {
     if (dragIndex === null || !dragKnots) {
       return false;
     }
-    const at = clampKnotDrag(
-      dragKnots,
-      dragIndex,
-      eventToWorld(event),
-      maxAbsSlope,
-    );
-    dragKnots[dragIndex] = { ...dragKnots[dragIndex], x: at.x, y: at.y };
+    if (dragKind === "tangent") {
+      const knotScreen = worldToScreen(vp, dragKnots[dragIndex]);
+      const slope = slopeFromHandleDrag(
+        knotScreen,
+        eventToScreen(event),
+        maxAbsSlope,
+      );
+      dragKnots[dragIndex] = { ...dragKnots[dragIndex], tangent: slope, slope };
+    } else {
+      const at = clampKnotDrag(
+        dragKnots,
+        dragIndex,
+        eventToWorld(event),
+        maxAbsSlope,
+      );
+      dragKnots[dragIndex] = { ...dragKnots[dragIndex], x: at.x, y: at.y };
+    }
     redraw();
     applyRefit(dragKnots.map((knot) => ({ ...knot })));
     return true;
   };
 
-  const endKnotDrag = (event: PointerEvent): boolean => {
+  const endEditDrag = (event: PointerEvent): boolean => {
     if (dragIndex === null || !dragKnots) {
       return false;
     }
@@ -122,6 +156,7 @@ export function installDrawing(
     applyRefit(
       dragKnots.map((knot) => ({ ...knot })),
       () => {
+        dragKind = null;
         dragIndex = null;
         dragKnots = null;
       },
@@ -167,14 +202,14 @@ export function installDrawing(
     if (event.button !== 0) {
       return;
     }
-    if (beginKnotDrag(event)) {
+    if (beginEditDrag(event)) {
       return;
     }
     beginStroke(event);
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (moveKnotDrag(event)) {
+    if (moveEditDrag(event)) {
       return;
     }
     if (active && active.tryAdd(eventToWorld(event))) {
@@ -183,7 +218,7 @@ export function installDrawing(
   });
 
   canvas.addEventListener("pointerup", (event) => {
-    if (endKnotDrag(event)) {
+    if (endEditDrag(event)) {
       return;
     }
     endStroke(event);
@@ -226,5 +261,28 @@ function drawKnots(
     ctx.beginPath();
     ctx.arc(screen.x, screen.y, KNOT_RADIUS, 0, 2 * Math.PI);
     ctx.fill();
+  }
+}
+
+/** Draw each knot's tangent handle: a thin line at the slope angle ending in a
+ * hollow tip that the user drags to set the slope. */
+function drawTangentHandles(
+  ctx: CanvasRenderingContext2D,
+  vp: Viewport,
+  knots: readonly Knot[],
+  color: string,
+): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  for (const knot of knots) {
+    const base = worldToScreen(vp, knot);
+    const end = tangentHandleEnd(knot, vp, HANDLE_LEN);
+    ctx.beginPath();
+    ctx.moveTo(base.x, base.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(end.x, end.y, HANDLE_END_RADIUS, 0, 2 * Math.PI);
+    ctx.stroke();
   }
 }

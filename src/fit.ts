@@ -4,13 +4,14 @@ import type { Point } from "./viewport";
 // Allowed perpendicular deviation (world units) when the core resamples a stroke.
 const FIT_TOLERANCE = 0.05;
 
-/** A knot in world coordinates: position plus an optional user-set tangent
- * (slope). `null` means the fitter chooses the slope; a number is a dragged
- * tangent handle. */
+/** A knot in world coordinates: position, an optional user-set tangent (`null`
+ * = fitter chooses, a number = a dragged tangent handle), and the effective
+ * `slope` in the fitted curve (used to draw the tangent handle). */
 export interface Knot {
   x: number;
   y: number;
   tangent: number | null;
+  slope: number;
 }
 
 /** A curve fitted by the core: its knots (for editing/resume) and a dense

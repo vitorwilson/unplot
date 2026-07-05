@@ -1,14 +1,17 @@
 use curve_engine::{Curve, Knot};
 use serde::{Deserialize, Serialize};
 
-/// A knot as exchanged with the frontend: position plus an optional user-set
-/// tangent (slope). `None` means the fitter chooses the slope; `Some` is a
-/// dragged tangent handle (Phase 3).
+/// A knot as exchanged with the frontend: position, an optional user-set tangent
+/// (`None` = fitter chooses, `Some` = a dragged tangent handle), and the
+/// effective `slope` in the fitted curve. `slope` is output-only — it is ignored
+/// on input (the fitter recomputes it) and drives handle rendering on output.
 #[derive(Serialize, Deserialize, Clone, Copy)]
 struct KnotDto {
     x: f64,
     y: f64,
     tangent: Option<f64>,
+    #[serde(default)]
+    slope: f64,
 }
 
 impl KnotDto {
@@ -83,18 +86,21 @@ fn to_knots(dtos: &[KnotDto]) -> Vec<Knot> {
 /// Serialize a fitted curve for the frontend: its knots (positions + any user
 /// tangents, for editing/resume) and a dense polyline of its smooth spline.
 fn render(curve: &Curve) -> FittedCurve {
+    let spline = curve.fit();
+    let slopes = spline.knot_slopes();
     FittedCurve {
         knots: curve
             .knots()
             .iter()
-            .map(|knot| KnotDto {
+            .zip(slopes)
+            .map(|(knot, slope)| KnotDto {
                 x: knot.x,
                 y: knot.y,
                 tangent: knot.tangent,
+                slope,
             })
             .collect(),
-        polyline: curve
-            .fit()
+        polyline: spline
             .polyline(POLYLINE_POINTS)
             .iter()
             .map(|&(x, y)| [x, y])
@@ -161,42 +167,42 @@ mod tests {
     fn refit_honors_a_user_tangent() {
         // A flat tangent at both ends over [0, 1] is the smoothstep 3t²−2t³,
         // which passes through 0.5 at the midpoint.
-        let knots = vec![
-            KnotDto {
-                x: 0.0,
-                y: 0.0,
-                tangent: Some(0.0),
-            },
-            KnotDto {
-                x: 1.0,
-                y: 1.0,
-                tangent: Some(0.0),
-            },
-        ];
+        let knots = vec![dto(0.0, 0.0, Some(0.0)), dto(1.0, 1.0, Some(0.0))];
         let fitted = refit_curve(knots).unwrap();
         let mid = fitted.polyline[fitted.polyline.len() / 2];
         assert!((mid[1] - 0.5).abs() < 0.05, "midpoint y was {}", mid[1]);
     }
 
     #[test]
+    fn refit_reports_the_slope_at_each_knot() {
+        // A straight run of knots -> every effective slope equals the gradient.
+        let knots = vec![
+            dto(0.0, 0.0, None),
+            dto(1.0, 2.0, None),
+            dto(2.0, 4.0, None),
+        ];
+        let fitted = refit_curve(knots).unwrap();
+        for knot in fitted.knots {
+            assert!((knot.slope - 2.0).abs() < 1e-9, "slope was {}", knot.slope);
+        }
+    }
+
+    #[test]
     fn refit_rejects_a_knot_dragged_past_its_neighbor() {
         let knots = vec![
-            KnotDto {
-                x: 0.0,
-                y: 0.0,
-                tangent: None,
-            },
-            KnotDto {
-                x: 2.0,
-                y: 1.0,
-                tangent: None,
-            },
-            KnotDto {
-                x: 1.0,
-                y: 1.0,
-                tangent: None,
-            },
+            dto(0.0, 0.0, None),
+            dto(2.0, 1.0, None),
+            dto(1.0, 1.0, None),
         ];
         assert!(refit_curve(knots).is_err());
+    }
+
+    fn dto(x: f64, y: f64, tangent: Option<f64>) -> KnotDto {
+        KnotDto {
+            x,
+            y,
+            tangent,
+            slope: 0.0,
+        }
     }
 }
