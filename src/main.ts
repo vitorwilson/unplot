@@ -1,4 +1,5 @@
 import { canvasPixelSize } from "./dpr";
+import { installDrawing } from "./draw";
 import { visibleGridLines } from "./grid";
 import { worldToScreen, type Viewport } from "./viewport";
 
@@ -10,6 +11,8 @@ const CSS_HEIGHT = 480;
 const GRID_STEP = 1;
 const GRID_COLOR = "#e3e3e3";
 const AXIS_COLOR = "#8a8a8a";
+// Spike cap for the drawing hard-block, in world units of |dy/dx|.
+const MAX_SLOPE = 50;
 
 function centeredViewport(): Viewport {
   return { originX: CSS_WIDTH / 2, originY: CSS_HEIGHT / 2, scale: 40 };
@@ -70,5 +73,9 @@ function drawPlane(ctx: CanvasRenderingContext2D, vp: Viewport): void {
 
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
 if (canvas) {
-  drawPlane(setupCanvas(canvas), centeredViewport());
+  const ctx = setupCanvas(canvas);
+  const viewport = centeredViewport();
+  const redrawBackground = () => drawPlane(ctx, viewport);
+  redrawBackground();
+  installDrawing(canvas, ctx, viewport, MAX_SLOPE, redrawBackground);
 }

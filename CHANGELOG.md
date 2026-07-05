@@ -32,3 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cartesian plane (Phase 2): a Canvas 2D grid and axes driven by pure,
   unit-tested world↔screen viewport transforms (`worldToScreen`, `screenToWorld`,
   `pan`, `zoomAt`) and visible-gridline math.
+- Hard-block freehand drawing (Phase 2): pointer capture with an instant "wall" —
+  the pen cannot reverse in x or exceed the slope cap (`StrokeBuilder`, mirroring
+  the Rust validators) — drawn live on the plane.

@@ -11,7 +11,7 @@ export default defineConfig({
     strictPort: true,
   },
   build: {
-    target: "es2021",
+    target: "es2022",
     outDir: "dist",
     emptyOutDir: true,
   },
