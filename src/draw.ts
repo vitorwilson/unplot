@@ -32,7 +32,7 @@ export function installDrawing(
   maxAbsSlope: number,
   redrawBackground: () => void,
   fitter: StrokeFitter,
-): void {
+): { redraw: () => void } {
   let curve: FittedCurve | null = null;
   let active: StrokeBuilder | null = null;
 
@@ -55,6 +55,10 @@ export function installDrawing(
   };
 
   canvas.addEventListener("pointerdown", (event) => {
+    // Only the primary button draws; other buttons drive pan/zoom (navigate.ts).
+    if (event.button !== 0) {
+      return;
+    }
     // Resume from the previous curve's right endpoint, so the pen can't restart
     // behind where it left off.
     const anchor = curve ? (curve.knots.at(-1) ?? null) : null;
@@ -93,6 +97,8 @@ export function installDrawing(
         // keep the previous curve unchanged.
       });
   });
+
+  return { redraw };
 }
 
 function drawPolyline(

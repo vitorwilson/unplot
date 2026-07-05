@@ -36,3 +36,24 @@ function multiplesInRange(min: number, max: number, step: number): number[] {
   }
   return out;
 }
+
+/**
+ * A "nice" world-space grid step (1, 2, or 5 × a power of ten) giving roughly
+ * `targetPx` pixels between gridlines at the current `scale`. Keeps the grid
+ * legible as the user zooms.
+ *
+ * @example
+ * tickStep(40, 80); // 2 — at 40 px/unit, 2-unit spacing is ~80 px
+ */
+export function tickStep(scale: number, targetPx: number): number {
+  if (scale <= 0 || targetPx <= 0) {
+    throw new Error(
+      `tickStep: scale and targetPx must be positive, got ${scale}, ${targetPx}`,
+    );
+  }
+  const rawStep = targetPx / scale;
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const normalized = rawStep / magnitude;
+  const niceNormalized = normalized < 1.5 ? 1 : normalized < 3.5 ? 2 : 5;
+  return niceNormalized * magnitude;
+}

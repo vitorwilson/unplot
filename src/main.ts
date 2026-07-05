@@ -1,17 +1,20 @@
 import { canvasPixelSize } from "./dpr";
 import { installDrawing } from "./draw";
 import { extendStroke, fitStroke } from "./fit";
-import { visibleGridLines } from "./grid";
+import { tickStep, visibleGridLines } from "./grid";
+import { installViewportControls } from "./navigate";
 import { worldToScreen, type Viewport } from "./viewport";
 
-// Phase 2: a Cartesian plane on Canvas 2D. Pointer capture, hard-block drawing,
-// and lift-and-resume build on this next (see docs/PLAN.md).
+// Phase 2: a Cartesian plane on Canvas 2D — grid, axes, labels, wheel-zoom and
+// middle-drag-pan — with hard-block drawing and lift-and-resume on top.
 
 const CSS_WIDTH = 640;
 const CSS_HEIGHT = 480;
-const GRID_STEP = 1;
+const TARGET_GRID_PX = 64; // aim for ~this many pixels between gridlines
 const GRID_COLOR = "#e3e3e3";
 const AXIS_COLOR = "#8a8a8a";
+const LABEL_COLOR = "#5a5a5a";
+const LABEL_FONT = "11px sans-serif";
 // Spike cap for the drawing hard-block, in world units of |dy/dx|.
 const MAX_SLOPE = 50;
 
@@ -34,10 +37,14 @@ function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   return ctx;
 }
 
-function drawGrid(ctx: CanvasRenderingContext2D, vp: Viewport): void {
+function drawGrid(
+  ctx: CanvasRenderingContext2D,
+  vp: Viewport,
+  step: number,
+): void {
   ctx.strokeStyle = GRID_COLOR;
   ctx.lineWidth = 1;
-  const { xs, ys } = visibleGridLines(vp, CSS_WIDTH, CSS_HEIGHT, GRID_STEP);
+  const { xs, ys } = visibleGridLines(vp, CSS_WIDTH, CSS_HEIGHT, step);
   for (const wx of xs) {
     const sx = worldToScreen(vp, { x: wx, y: 0 }).x;
     ctx.beginPath();
@@ -66,10 +73,46 @@ function drawAxes(ctx: CanvasRenderingContext2D, vp: Viewport): void {
   ctx.stroke();
 }
 
+/** Numeric labels along the axes at each gridline (skipping the origin). */
+function drawLabels(
+  ctx: CanvasRenderingContext2D,
+  vp: Viewport,
+  step: number,
+): void {
+  const { xs, ys } = visibleGridLines(vp, CSS_WIDTH, CSS_HEIGHT, step);
+  const origin = worldToScreen(vp, { x: 0, y: 0 });
+  const decimals = Math.max(0, -Math.floor(Math.log10(step)));
+  const label = (v: number) => v.toFixed(decimals);
+  const clamp = (v: number, lo: number, hi: number) =>
+    Math.min(Math.max(v, lo), hi);
+
+  ctx.fillStyle = LABEL_COLOR;
+  ctx.font = LABEL_FONT;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const axisY = clamp(origin.y + 3, 3, CSS_HEIGHT - 14);
+  for (const wx of xs) {
+    if (wx !== 0) {
+      ctx.fillText(label(wx), worldToScreen(vp, { x: wx, y: 0 }).x, axisY);
+    }
+  }
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const axisX = clamp(origin.x + 4, 4, CSS_WIDTH - 28);
+  for (const wy of ys) {
+    if (wy !== 0) {
+      ctx.fillText(label(wy), axisX, worldToScreen(vp, { x: 0, y: wy }).y);
+    }
+  }
+}
+
 function drawPlane(ctx: CanvasRenderingContext2D, vp: Viewport): void {
+  const step = tickStep(vp.scale, TARGET_GRID_PX);
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
-  drawGrid(ctx, vp);
+  drawGrid(ctx, vp, step);
   drawAxes(ctx, vp);
+  drawLabels(ctx, vp, step);
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
@@ -78,8 +121,13 @@ if (canvas) {
   const viewport = centeredViewport();
   const redrawBackground = () => drawPlane(ctx, viewport);
   redrawBackground();
-  installDrawing(canvas, ctx, viewport, MAX_SLOPE, redrawBackground, {
-    fit: fitStroke,
-    extend: extendStroke,
-  });
+  const { redraw } = installDrawing(
+    canvas,
+    ctx,
+    viewport,
+    MAX_SLOPE,
+    redrawBackground,
+    { fit: fitStroke, extend: extendStroke },
+  );
+  installViewportControls(canvas, viewport, redraw);
 }

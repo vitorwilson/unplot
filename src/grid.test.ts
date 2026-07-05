@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { visibleGridLines } from "./grid";
+import { tickStep, visibleGridLines } from "./grid";
 import { type Viewport } from "./viewport";
 
 const centered: Viewport = { originX: 320, originY: 240, scale: 40 };
@@ -23,5 +23,26 @@ describe("visibleGridLines", () => {
 
   it("rejects a non-positive step", () => {
     expect(() => visibleGridLines(centered, 640, 480, 0)).toThrow(/positive/);
+  });
+});
+
+describe("tickStep", () => {
+  it("picks a 1/2/5 × power-of-ten step near the target spacing", () => {
+    expect(tickStep(40, 80)).toBe(2); // 80/40 = 2 world units
+    expect(tickStep(40, 40)).toBe(1); // 40/40 = 1
+    expect(tickStep(40, 200)).toBe(5); // 200/40 = 5
+  });
+
+  it("shrinks the step as the plane zooms in", () => {
+    expect(tickStep(400, 80)).toBe(0.2); // 10x zoom -> finer grid
+  });
+
+  it("grows the step as the plane zooms out", () => {
+    expect(tickStep(4, 80)).toBe(20); // zoomed out -> coarser grid
+  });
+
+  it("rejects non-positive inputs", () => {
+    expect(() => tickStep(0, 80)).toThrow(/positive/);
+    expect(() => tickStep(40, 0)).toThrow(/positive/);
   });
 });
