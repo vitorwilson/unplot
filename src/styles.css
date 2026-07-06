@@ -5,6 +5,9 @@
   --ink: #2a2a2a;
   --muted: #6a6a6a;
   --border: #d5d8dd;
+  /* Make native controls (the format <select> and its popup, scrollbars) render
+     in the active theme — WebKitGTK otherwise defaults them to light. */
+  color-scheme: light;
 }
 
 :root[data-theme="dark"] {
@@ -13,6 +16,7 @@
   --ink: #e6e8eb;
   --muted: #9aa0a6;
   --border: #2a2d34;
+  color-scheme: dark;
 }
 
 * {
@@ -115,17 +119,40 @@ h1 {
 }
 
 .latex-format {
-  background: var(--panel);
+  /* Drop native rendering so the closed control honors the theme on WebKitGTK
+     (native selects there ignore background/color); draw our own caret. */
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--panel);
   color: var(--ink);
   border: 1px solid var(--border);
   border-radius: 5px;
-  padding: 0.25rem 0.4rem;
+  padding: 0.25rem 1.4rem 0.25rem 0.5rem;
   font-size: 0.8rem;
   cursor: pointer;
+  /* Caret drawn from two gradients (no external asset — CSP-safe) in the muted
+     token, so it stays visible in both themes. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    right 0.65rem center,
+    right 0.4rem center;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
 }
 
 .latex-format:hover {
   border-color: var(--muted);
+}
+
+/* The open dropdown list still renders natively; color it so items are legible
+   even where color-scheme alone isn't honored. */
+.latex-format option {
+  background: var(--panel);
+  color: var(--ink);
 }
 
 .latex-copy {
