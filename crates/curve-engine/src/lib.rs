@@ -11,6 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod calculus;
 mod coeffs;
 mod curve;
 mod error;

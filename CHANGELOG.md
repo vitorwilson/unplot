@@ -90,3 +90,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   chooses which form (raw LaTeX / Desmos / Wolfram) lands on the clipboard, so a
   drawn curve pastes straight into either tool. Shared number/polynomial
   formatting moved into one `coeffs` module used by all three targets.
+- Calculus engine (Phase 5): the core differentiates and integrates a fitted
+  curve analytically, per segment, with no CAS (`calculus::differentiate`,
+  `calculus::integrate`). The derivative is the exact continuous piecewise
+  polynomial one degree lower; the integral is the antiderivative with
+  `F(x_first) = 0`, its per-segment constant accumulating the area so it stays
+  continuous across joins (and C²). Results are themselves splines, so they
+  evaluate, render as LaTeX/Desmos/Wolfram, and chain (differentiate the
+  integral, …). Segment coefficients generalized to variable degree to hold the
+  higher-degree results.

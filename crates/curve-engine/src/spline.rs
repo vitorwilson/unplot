@@ -133,6 +133,18 @@ impl Spline {
         let idx = count.saturating_sub(1).min(self.segments.len() - 1);
         &self.segments[idx]
     }
+
+    /// Build a spline directly from ready-made polynomial pieces — used by
+    /// calculus, where pieces come from differentiating or integrating an
+    /// existing curve rather than from fitting knots. `pieces` must be non-empty
+    /// and left-to-right contiguous; the domain is taken from the outer edges.
+    pub(crate) fn from_pieces(pieces: Vec<Segment>) -> Spline {
+        let domain = (pieces[0].x_start, pieces[pieces.len() - 1].x_end);
+        Spline {
+            segments: pieces,
+            domain,
+        }
+    }
 }
 
 /// Fit the spline for a validated, strictly-increasing set of knots.
