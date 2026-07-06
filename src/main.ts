@@ -159,6 +159,13 @@ function installMathControls(
   const copyButton = document.querySelector<HTMLButtonElement>("#latex-copy");
   const body = document.querySelector<HTMLElement>("#latex-body");
   const math = document.querySelector<HTMLElement>("#latex-math");
+  const approxPanel = document.querySelector<HTMLElement>("#latex-approx");
+  const approxMath = document.querySelector<HTMLElement>("#latex-approx-math");
+  const approxError = document.querySelector<HTMLElement>(
+    "#latex-approx-error",
+  );
+  const approxCopy =
+    document.querySelector<HTMLButtonElement>("#latex-approx-copy");
   if (
     !doneBtn ||
     !dxBtn ||
@@ -169,7 +176,11 @@ function installMathControls(
     !formatSelect ||
     !copyButton ||
     !body ||
-    !math
+    !math ||
+    !approxPanel ||
+    !approxMath ||
+    !approxError ||
+    !approxCopy
   ) {
     return null;
   }
@@ -180,6 +191,10 @@ function installMathControls(
     copyButton,
     body,
     math,
+    approxPanel,
+    approxMath,
+    approxError,
+    approxCopy,
   });
   doneBtn.addEventListener("click", () => {
     const curve = currentCurve();

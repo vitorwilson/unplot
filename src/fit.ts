@@ -75,14 +75,24 @@ export async function refitCurve(knots: Knot[]): Promise<FittedCurve> {
   return shape(await invoke<RawCurve>("refit_curve", { knots }));
 }
 
+/** A compact closed-form approximation of the curve (Phase 7), offered only when
+ * trustworthy. `maxError`/`rmsError` are fractions of the curve's y-range. */
+export interface Approximation {
+  latex: string;
+  maxError: number;
+  rmsError: number;
+}
+
 /** The curve's exact function in every copy target: a one-line `summary`, the
  * full piecewise `latex` cases block (also shown by KaTeX), and the Desmos /
- * Wolfram paste forms. All are derived from one fit by the core. */
+ * Wolfram paste forms. All are derived from one fit by the core. `approximation`
+ * is a compact closed form when one is trustworthy, else `null`. */
 export interface CurveLatex {
   summary: string;
   latex: string;
   desmos: string;
   wolfram: string;
+  approximation: Approximation | null;
 }
 
 /** Ask the core for the current curve's LaTeX (the "Done" action). */
@@ -95,13 +105,22 @@ export type CalcOp = "differentiate" | "integrate";
 
 /** A calculus result for display: the transformed curve's polyline (to draw) and
  * its math in every copy format. Not editable — the drawn knots stay the source
- * of truth and the operation stack is replayed on each request. */
-export interface CalcCurve extends CurveLatex {
+ * of truth and the operation stack is replayed on each request. (No closed-form
+ * approximation: the "prettier function" is offered for the drawn curve only.) */
+export interface CalcCurve {
   polyline: Point[];
+  summary: string;
+  latex: string;
+  desmos: string;
+  wolfram: string;
 }
 
-interface RawCalcCurve extends CurveLatex {
+interface RawCalcCurve {
   polyline: [number, number][];
+  summary: string;
+  latex: string;
+  desmos: string;
+  wolfram: string;
 }
 
 /** Fit the drawn `knots`, apply each `op` in order through the core, and return

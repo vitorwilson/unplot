@@ -242,17 +242,18 @@ first:
 
 1. **Least-squares against a fixed basis dictionary** (polynomials, sin/cos, exp,
    log) with sparsity — cheap, deterministic; nails "this is basically x²" or
-   "…basically a sine."
+   "…basically a sine." **✓ Shipped** — the `approximate` module (error-gated,
+   pure-Rust).
 2. **Chebyshev / Fourier series** → readable closed form *when it collapses to a
    few terms*.
 3. **Padé / rational** approximation for pole-shaped curves.
 4. **Only then**, an opt-in "try harder" mode via heavier symbolic regression
    (e.g. a PySR sidecar) — possibly slow, clearly optional.
 
-- [ ] **Always compute and display fit error** (max and RMS over `[a, b]`). Only
+- [x] **Always compute and display fit error** (max and RMS over `[a, b]`). Only
   *offer* the pretty form when error is below a threshold; otherwise stay silent
   and keep the piecewise output. Never present an approximation as exact.
-- [ ] **FOSS-only — Symbolica is banned.** This is a public, redistributed repo, so
+- [x] **FOSS-only — Symbolica is banned.** This is a public, redistributed repo, so
   the symbolic layer uses only permissively-licensed tools: pure-Rust numerical
   fitting (`nalgebra` / `ndarray`) for the steps above, and — only if
   named-function recognition is added — an open-source CAS (`cas-rs`) or a

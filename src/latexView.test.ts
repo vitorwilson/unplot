@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { copyLabel, formatText, summaryLabel } from "./latexView";
+import {
+  approxErrorLabel,
+  copyLabel,
+  formatText,
+  summaryLabel,
+} from "./latexView";
 import type { CurveLatex } from "./fit";
 
 describe("summaryLabel", () => {
@@ -24,12 +29,27 @@ describe("copyLabel", () => {
   });
 });
 
+describe("approxErrorLabel", () => {
+  it("renders max and RMS error as percentages of the range", () => {
+    expect(approxErrorLabel(0.004, 0.001)).toBe(
+      "approximation · max 0.40% · RMS 0.10%",
+    );
+  });
+
+  it("shows ~0 for an exact fit", () => {
+    expect(approxErrorLabel(0, 0)).toBe(
+      "approximation · max 0.00% · RMS 0.00%",
+    );
+  });
+});
+
 describe("formatText", () => {
   const result: CurveLatex = {
     summary: "1-segment spline over [0, 2]",
     latex: "f(x) = \\begin{cases} 2x & 0 \\le x \\le 2 \\end{cases}",
     desmos: "\\left\\{0 \\le x \\le 2: 2x\\right\\}",
     wolfram: "Piecewise[{{2x, 0 <= x <= 2}}]",
+    approximation: null,
   };
 
   it("picks the field matching the chosen target", () => {

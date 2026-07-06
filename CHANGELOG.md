@@ -129,3 +129,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and reports honest max/RMS error — offering the fewest-term form only when its
   error is within 3% of the curve's range, otherwise staying silent so the exact
   piecewise output stands alone. Pure-Rust (nalgebra), deterministic, no CAS.
+- Prettier function UI (Phase 7): pressing Done now also asks the core for a
+  closed form; when one is offered it appears as the headline of the math panel —
+  `f(x) ≈ 2x²` rendered by KaTeX, with its max/RMS error as a percentage of the
+  range and an "approximation" tag — above the exact piecewise output, which stays
+  put and unchanged. The clean form has its own Copy button. When nothing is
+  trustworthy the headline is simply absent.

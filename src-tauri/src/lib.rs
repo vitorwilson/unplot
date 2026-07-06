@@ -85,18 +85,48 @@ struct CurveLatex {
     latex: String,
     desmos: String,
     wolfram: String,
+    /// A compact closed form offered only when the fit is trustworthy (Phase 7);
+    /// `None` means the exact output stands alone.
+    approximation: Option<Approximation>,
+}
+
+/// The "prettier function": a closed-form LaTeX approximation plus its error as a
+/// fraction of the curve's y-range (so the UI can show "max 0.4%").
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Approximation {
+    latex: String,
+    max_error: f64,
+    rms_error: f64,
 }
 
 #[tauri::command]
 fn curve_latex(knots: Vec<KnotDto>) -> Result<CurveLatex, String> {
     let curve = Curve::new(to_knots(&knots)).map_err(|error| error.to_string())?;
     let spline = curve.fit();
+    let approximation = curve_engine::approximate::closed_form(&spline).map(|form| {
+        let range = y_span(&spline).max(1e-6);
+        Approximation {
+            latex: form.latex,
+            max_error: form.max_error / range,
+            rms_error: form.rms_error / range,
+        }
+    });
     Ok(CurveLatex {
         summary: curve_engine::latex::summary(&spline),
         latex: curve_engine::latex::piecewise(&spline),
         desmos: curve_engine::export::desmos(&spline),
         wolfram: curve_engine::export::wolfram(&spline),
+        approximation,
     })
+}
+
+/// The extent of the spline's y values, used to express fit error as a fraction.
+fn y_span(spline: &curve_engine::Spline) -> f64 {
+    let ys = spline.polyline(POLYLINE_POINTS);
+    let lo = ys.iter().map(|&(_, y)| y).fold(f64::INFINITY, f64::min);
+    let hi = ys.iter().map(|&(_, y)| y).fold(f64::NEG_INFINITY, f64::max);
+    (hi - lo).max(0.0)
 }
 
 /// A calculus operation the UI chains onto the drawn curve, arriving from the
@@ -308,6 +338,21 @@ mod tests {
         assert!(result.latex.contains("\\begin{cases}"));
         assert!(result.desmos.contains("\\left\\{"));
         assert!(result.wolfram.contains("Piecewise[{{"));
+    }
+
+    #[test]
+    fn curve_latex_offers_a_closed_form_for_a_simple_curve() {
+        // y = 2x is exactly one basis term, so a trustworthy form is offered.
+        let result = curve_latex(vec![dto(0.0, 0.0, None), dto(2.0, 4.0, None)]).unwrap();
+        let approx = result
+            .approximation
+            .expect("a line should get a closed form");
+        assert!(approx.latex.contains("2x"), "{}", approx.latex);
+        assert!(
+            approx.max_error < 0.01,
+            "relative error {}",
+            approx.max_error
+        );
     }
 
     #[test]

@@ -10,6 +10,7 @@ import type { CurveLatex } from "./fit";
 
 const COPY_DONE = "Copied!";
 const COPY_FAIL = "Copy failed";
+const COPY_APPROX_IDLE = "Copy";
 const COPY_RESET_MS = 1200;
 
 /** A clipboard target. The string values are the `CurveLatex` field names, so
@@ -38,6 +39,13 @@ export function summaryLabel(summary: string, expanded: boolean): string {
   return `${expanded ? "▾" : "▸"} ${summary}`;
 }
 
+/** The approximation's error line, as percentages of the curve's y-range. Pure,
+ * so it is unit-tested. */
+export function approxErrorLabel(maxError: number, rmsError: number): string {
+  const pct = (v: number): string => `${(v * 100).toFixed(2)}%`;
+  return `approximation · max ${pct(maxError)} · RMS ${pct(rmsError)}`;
+}
+
 /** The panel's DOM elements, injected so the view has no id coupling. */
 export interface LatexElements {
   panel: HTMLElement;
@@ -46,6 +54,11 @@ export interface LatexElements {
   copyButton: HTMLButtonElement;
   body: HTMLElement;
   math: HTMLElement;
+  // The "prettier function" headline, shown only when the core offers one.
+  approxPanel: HTMLElement;
+  approxMath: HTMLElement;
+  approxError: HTMLElement;
+  approxCopy: HTMLButtonElement;
 }
 
 /** Shows a curve's LaTeX in the panel. */
@@ -100,6 +113,35 @@ export function installLatexView(el: LatexElements): LatexView {
       .catch(() => flashCopy(el.copyButton, COPY_FAIL, idleLabel));
   });
 
+  // The "prettier function" headline: rendered above the exact output when the
+  // core offers a trustworthy closed form, hidden otherwise.
+  const showApproximation = (): void => {
+    const approx = current?.approximation ?? null;
+    el.approxPanel.hidden = !approx;
+    if (approx) {
+      katex.render(approx.latex, el.approxMath, {
+        displayMode: true,
+        throwOnError: false,
+      });
+      el.approxError.textContent = approxErrorLabel(
+        approx.maxError,
+        approx.rmsError,
+      );
+    }
+  };
+
+  const approxIdle = (): string => COPY_APPROX_IDLE;
+  el.approxCopy.addEventListener("click", () => {
+    const approx = current?.approximation;
+    if (!approx) {
+      return;
+    }
+    void navigator.clipboard
+      .writeText(approx.latex)
+      .then(() => flashCopy(el.approxCopy, COPY_DONE, approxIdle))
+      .catch(() => flashCopy(el.approxCopy, COPY_FAIL, approxIdle));
+  });
+
   return {
     show(result: CurveLatex): void {
       current = result;
@@ -107,6 +149,8 @@ export function installLatexView(el: LatexElements): LatexView {
       el.panel.hidden = false;
       el.copyButton.hidden = false;
       el.formatSelect.hidden = false;
+      el.approxCopy.textContent = COPY_APPROX_IDLE;
+      showApproximation();
       render();
     },
     message(text: string): void {
@@ -116,12 +160,14 @@ export function installLatexView(el: LatexElements): LatexView {
       el.copyButton.hidden = true;
       el.formatSelect.hidden = true;
       el.body.hidden = true;
+      el.approxPanel.hidden = true;
       el.summaryButton.textContent = text;
     },
     hide(): void {
       current = null;
       expanded = false;
       el.panel.hidden = true;
+      el.approxPanel.hidden = true;
     },
   };
 }
