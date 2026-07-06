@@ -58,6 +58,7 @@ export function installDrawing(
   currentCurve: () => FittedCurve | null;
   showDerived: (polyline: readonly Point[]) => void;
   clearDerived: () => void;
+  loadCurve: (loaded: FittedCurve) => void;
 } {
   let curve: FittedCurve | null = null;
   // A derived (differentiated/integrated) curve to show read-only instead of the
@@ -340,6 +341,13 @@ export function installDrawing(
     clearDerived: () => {
       derived = null;
       redraw();
+    },
+    // Load an opened file as the editable curve: a fresh committed state that
+    // replaces any in-progress stroke, drag, or derived view.
+    loadCurve: (loaded: FittedCurve) => {
+      derived = null;
+      restore(loaded);
+      history.push(loaded);
     },
   };
 }

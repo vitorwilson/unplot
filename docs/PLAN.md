@@ -216,12 +216,12 @@ they must be, and re-render as LaTeX.
 
 **Goal:** save a curve and reopen it as a fully editable curve, on any OS.
 
-- [ ] **Versioned JSON** with an explicit `schema_version` from v1. Store the
+- [x] **Versioned JSON** with an explicit `schema_version` from v1. Store the
   **source of truth**: ordered knots (x, y, tangents), domain `[a, b]`,
   metadata — *not* a rendered image — so files reopen editable and re-derive
   LaTeX and calculus deterministically.
-- [ ] Save / import / export; a distinct file extension wrapping JSON.
-- [ ] **Round-trip tests:** save → load → byte-for-byte equivalent curve. Old
+- [x] Save / import / export; a distinct file extension wrapping JSON.
+- [x] **Round-trip tests:** save → load → byte-for-byte equivalent curve. Old
   `schema_version` files still open (define the forward/backward-compat
   strategy).
 - [ ] Optional: embed a cached SVG/PNG preview for thumbnails.

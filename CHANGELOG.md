@@ -111,3 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fully editable and re-derives its LaTeX and calculus. `from_json` checks the
   schema version, refusing files newer than it understands and leaving one place
   to migrate older ones forward. Round-trip tested.
+- Save / open files (Phase 6): Save and Open buttons write and read `.unplot`
+  documents through the native file dialog; opening a file loads it as the fully
+  editable current curve (re-fit and re-derivable) and clears any calculus view.
+  A saved curve created on one platform reopens identically on the others.

@@ -147,6 +147,30 @@ fn apply_calculus(knots: Vec<KnotDto>, ops: Vec<CalcOp>) -> Result<CalcCurve, St
     })
 }
 
+/// Save the drawn curve to `path` as a versioned `.unplot` document. The
+/// frontend picks `path` via the native save dialog; only the knots (the source
+/// of truth) are written, so the file reopens fully editable.
+#[tauri::command]
+fn save_curve(path: String, knots: Vec<KnotDto>) -> Result<(), String> {
+    let curve = Curve::new(to_knots(&knots)).map_err(|error| error.to_string())?;
+    let json = curve_engine::document::Document::from_curve(&curve).to_json();
+    std::fs::write(&path, json).map_err(|error| format!("could not write {path}: {error}"))
+}
+
+/// Open a `.unplot` document from `path` and return the fitted curve for editing.
+/// Errors (as a message) if the file is missing, malformed, from a newer schema,
+/// or does not describe a valid function.
+#[tauri::command]
+fn open_curve(path: String) -> Result<FittedCurve, String> {
+    let json = std::fs::read_to_string(&path)
+        .map_err(|error| format!("could not read {path}: {error}"))?;
+    let curve = curve_engine::document::from_json(&json)
+        .map_err(|error| error.to_string())?
+        .into_curve()
+        .map_err(|error| error.to_string())?;
+    Ok(render(&curve))
+}
+
 fn pairs(samples: &[[f64; 2]]) -> Vec<(f64, f64)> {
     samples.iter().map(|&[x, y]| (x, y)).collect()
 }
@@ -183,6 +207,7 @@ fn render(curve: &Curve) -> FittedCurve {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -199,7 +224,9 @@ pub fn run() {
             extend_curve,
             refit_curve,
             curve_latex,
-            apply_calculus
+            apply_calculus,
+            save_curve,
+            open_curve
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -208,7 +235,8 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_calculus, curve_latex, extend_curve, fit_curve, refit_curve, CalcOp, KnotDto,
+        apply_calculus, curve_latex, extend_curve, fit_curve, open_curve, refit_curve, save_curve,
+        CalcOp, KnotDto,
     };
 
     #[test]
@@ -310,6 +338,30 @@ mod tests {
         for (o, r) in original.polyline.iter().zip(&recovered.polyline) {
             assert!((o[1] - r[1]).abs() < 1e-6, "{} vs {}", o[1], r[1]);
         }
+    }
+
+    #[test]
+    fn save_then_open_round_trips_the_curve_through_a_file() {
+        let knots = vec![
+            dto(0.0, 0.0, None),
+            dto(1.0, 2.0, Some(0.5)),
+            dto(2.0, -1.0, None),
+        ];
+        let path = std::env::temp_dir()
+            .join(format!("unplot_roundtrip_{}.unplot", std::process::id()))
+            .to_string_lossy()
+            .into_owned();
+        save_curve(path.clone(), knots).unwrap();
+        let opened = open_curve(path.clone()).unwrap();
+        std::fs::remove_file(&path).ok();
+        assert_eq!(opened.knots.len(), 3);
+        assert_eq!(opened.knots[1].tangent, Some(0.5)); // user tangent survives
+        assert!(opened.polyline.len() >= 2);
+    }
+
+    #[test]
+    fn open_curve_reports_a_missing_file() {
+        assert!(open_curve("/no/such/unplot/file.unplot".to_string()).is_err());
     }
 
     fn dto(x: f64, y: f64, tangent: Option<f64>) -> KnotDto {

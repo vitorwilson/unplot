@@ -60,10 +60,12 @@ export interface CalculusDeps {
   view: LatexView;
 }
 
-/** Reports whether a derived curve is currently shown (so the app can suspend
- * undo/redo, which belongs to the drawing, not to a calculus view). */
+/** Controls a derived (calculus) view. `isDerived` lets the app suspend undo/redo
+ * (which belongs to the drawing) while a result is shown; `reset` returns to the
+ * drawing, e.g. when a file is opened. */
 export interface CalculusController {
   isDerived: () => boolean;
+  reset: () => void;
 }
 
 export function installCalculusView(
@@ -109,5 +111,5 @@ export function installCalculusView(
   el.resetButton.addEventListener("click", reset);
   syncButtons();
 
-  return { isDerived: () => ops.length > 0 };
+  return { isDerived: () => ops.length > 0, reset };
 }

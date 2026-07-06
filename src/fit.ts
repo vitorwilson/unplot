@@ -113,3 +113,14 @@ export async function applyCalculus(
   const raw = await invoke<RawCalcCurve>("apply_calculus", { knots, ops });
   return { ...raw, polyline: toPoints(raw.polyline) };
 }
+
+/** Write the drawn curve to `path` as a versioned `.unplot` document. */
+export async function saveCurve(path: string, knots: Knot[]): Promise<void> {
+  await invoke("save_curve", { path, knots });
+}
+
+/** Read a `.unplot` document from `path` into an editable fitted curve. Rejects
+ * if the file is malformed, from a newer schema, or not a valid function. */
+export async function openCurve(path: string): Promise<FittedCurve> {
+  return shape(await invoke<RawCurve>("open_curve", { path }));
+}

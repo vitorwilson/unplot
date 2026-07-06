@@ -11,8 +11,9 @@ import {
   type FittedCurve,
 } from "./fit";
 import { installCalculusView, type CalculusController } from "./calculusView";
+import { openCurveDialog, saveCurveDialog } from "./files";
 import { tickStep, visibleGridLines } from "./grid";
-import { installLatexView } from "./latexView";
+import { installLatexView, type LatexView } from "./latexView";
 import { installViewportControls } from "./navigate";
 import { installTheme, type CanvasColors } from "./theme";
 import { worldToScreen, type Point, type Viewport } from "./viewport";
@@ -143,7 +144,7 @@ function installMathControls(
   currentCurve: () => FittedCurve | null,
   showDerived: (polyline: Point[]) => void,
   clearDerived: () => void,
-): CalculusController | null {
+): { view: LatexView; calc: CalculusController } | null {
   const doneBtn = document.querySelector<HTMLButtonElement>("#done-btn");
   const dxBtn = document.querySelector<HTMLButtonElement>("#dx-btn");
   const integralBtn =
@@ -189,7 +190,7 @@ function installMathControls(
       .then((result) => view.show(result))
       .catch(() => view.message("Couldn't render the function."));
   });
-  return installCalculusView(
+  const calc = installCalculusView(
     {
       dxButton: dxBtn,
       integralButton: integralBtn,
@@ -204,6 +205,43 @@ function installMathControls(
       view,
     },
   );
+  return { view, calc };
+}
+
+/** Wire the Save and Open buttons. Save writes the drawn curve as a `.unplot`
+ * file; Open loads one as the editable curve, first clearing any derived
+ * (calculus) view. Errors surface in the shared panel. */
+function installFileControls(
+  view: LatexView,
+  currentCurve: () => FittedCurve | null,
+  loadCurve: (curve: FittedCurve) => void,
+  calc: CalculusController,
+): void {
+  const saveBtn = document.querySelector<HTMLButtonElement>("#save-btn");
+  const openBtn = document.querySelector<HTMLButtonElement>("#open-btn");
+  if (!saveBtn || !openBtn) {
+    return;
+  }
+  saveBtn.addEventListener("click", () => {
+    const curve = currentCurve();
+    if (!curve || curve.knots.length < 2) {
+      view.message("Draw a function first.");
+      return;
+    }
+    void saveCurveDialog(curve.knots).catch(() =>
+      view.message("Couldn't save the file."),
+    );
+  });
+  openBtn.addEventListener("click", () => {
+    void openCurveDialog()
+      .then((loaded) => {
+        if (loaded) {
+          calc.reset();
+          loadCurve(loaded);
+        }
+      })
+      .catch(() => view.message("Couldn't open that file."));
+  });
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
@@ -228,19 +266,29 @@ if (canvas) {
 
   const redrawBackground = () => drawPlane(ctx, viewport, theme.colors());
   redrawBackground();
-  const { redraw, undo, redo, currentCurve, showDerived, clearDerived } =
-    installDrawing(
-      canvas,
-      ctx,
-      viewport,
-      MAX_SLOPE,
-      redrawBackground,
-      { fit: fitStroke, extend: extendStroke, refit: refitCurve },
-      () => theme.colors(),
-    );
+  const {
+    redraw,
+    undo,
+    redo,
+    currentCurve,
+    showDerived,
+    clearDerived,
+    loadCurve,
+  } = installDrawing(
+    canvas,
+    ctx,
+    viewport,
+    MAX_SLOPE,
+    redrawBackground,
+    { fit: fitStroke, extend: extendStroke, refit: refitCurve },
+    () => theme.colors(),
+  );
   repaint = redraw;
   installViewportControls(canvas, viewport, redraw);
-  const calc = installMathControls(currentCurve, showDerived, clearDerived);
+  const math = installMathControls(currentCurve, showDerived, clearDerived);
+  if (math) {
+    installFileControls(math.view, currentCurve, loadCurve, math.calc);
+  }
 
   // Undo/redo: Ctrl/Cmd+Z, and Ctrl/Cmd+Shift+Z or Ctrl+Y to redo.
   window.addEventListener("keydown", (event) => {
@@ -248,7 +296,7 @@ if (canvas) {
       return;
     }
     // Undo/redo belongs to the drawing; a derived (calculus) view ignores it.
-    if (calc?.isDerived()) {
+    if (math?.calc.isDerived()) {
       return;
     }
     const key = event.key.toLowerCase();

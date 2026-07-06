@@ -91,7 +91,9 @@ h1 {
 
 #dx-btn,
 #integral-btn,
-#calc-reset-btn {
+#calc-reset-btn,
+#open-btn,
+#save-btn {
   background: var(--panel);
   color: var(--ink);
   border: 1px solid var(--border);
@@ -103,7 +105,9 @@ h1 {
 
 #dx-btn:hover,
 #integral-btn:hover,
-#calc-reset-btn:hover {
+#calc-reset-btn:hover,
+#open-btn:hover,
+#save-btn:hover {
   border-color: var(--muted);
 }
 
