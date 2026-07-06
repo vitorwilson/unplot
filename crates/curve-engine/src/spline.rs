@@ -1,17 +1,19 @@
 use crate::knot::Knot;
 
-/// One cubic piece of a fitted spline, in power basis about its left endpoint:
-/// `y(x) = a + b·t + c·t² + d·t³` where `t = x − x_start` and
-/// `coeffs = [a, b, c, d]`.
+/// One polynomial piece of a piecewise curve, in power basis about its left
+/// endpoint: `y(x) = Σ coeffs[k]·tᵏ` where `t = x − x_start`.
 ///
-/// The power basis (rather than the Hermite form) is stored because calculus and
-/// LaTeX both work directly from `a, b, c, d`: differentiating or integrating a
-/// segment is elementary (Phase 5), and no CAS is involved.
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// A fitted spline's pieces are cubic (`coeffs = [a, b, c, d]`). The power basis
+/// (rather than the Hermite form) is stored because calculus and LaTeX both work
+/// directly from the coefficients, with no CAS: differentiating a piece lowers
+/// its degree and integrating raises it (Phase 5), so `coeffs` is a `Vec` rather
+/// than a fixed `[f64; 4]` — a quartic antiderivative (or a chain of them) simply
+/// carries more terms.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Segment {
     pub x_start: f64,
     pub x_end: f64,
-    pub coeffs: [f64; 4],
+    pub coeffs: Vec<f64>,
 }
 
 impl Segment {
@@ -27,15 +29,27 @@ impl Segment {
         Segment {
             x_start: start.x,
             x_end: end.x,
-            coeffs: [a, b, c, d],
+            coeffs: vec![a, b, c, d],
         }
     }
 
-    /// Evaluate the cubic at `x` (assumed within `[x_start, x_end]`) via Horner.
+    /// Evaluate the polynomial at `x` (assumed within `[x_start, x_end]`) via
+    /// Horner, for any degree.
     fn eval(&self, x: f64) -> f64 {
         let t = x - self.x_start;
-        let [a, b, c, d] = self.coeffs;
-        ((d * t + c) * t + b) * t + a
+        self.coeffs.iter().rev().fold(0.0, |acc, &c| acc * t + c)
+    }
+
+    /// The slope `y'(x_start + t)` at local offset `t`, i.e. `Σ_{k≥1} k·coeffs[k]·
+    /// tᵏ⁻¹`, for any degree. On a fitted cubic this is `b + 2c·t + 3d·t²`.
+    fn slope_at(&self, t: f64) -> f64 {
+        self.coeffs
+            .iter()
+            .enumerate()
+            .skip(1)
+            .fold(0.0, |acc, (k, &c)| {
+                acc + (k as f64) * c * t.powi(k as i32 - 1)
+            })
     }
 }
 
@@ -71,23 +85,21 @@ impl Spline {
         self.domain
     }
 
-    /// The cubic pieces, left to right.
+    /// The polynomial pieces, left to right.
     pub fn segments(&self) -> &[Segment] {
         &self.segments
     }
 
     /// Slope at the left end of the domain, `f'(x_first)`.
     pub fn start_slope(&self) -> f64 {
-        self.segments[0].coeffs[1]
+        self.segments[0].slope_at(0.0)
     }
 
     /// Slope at the right end of the domain, `f'(x_last)`. Used when resuming a
     /// drawing so the next stroke can join C¹.
     pub fn end_slope(&self) -> f64 {
         let last = &self.segments[self.segments.len() - 1];
-        let h = last.x_end - last.x_start;
-        let [_, b, c, d] = last.coeffs;
-        b + 2.0 * c * h + 3.0 * d * h * h
+        last.slope_at(last.x_end - last.x_start)
     }
 
     /// Slope at each knot, left to right (one per knot). The interior/left values
@@ -95,7 +107,7 @@ impl Spline {
     /// C¹ continuity means these are the unambiguous slopes at the joins — used to
     /// render the draggable tangent handles.
     pub fn knot_slopes(&self) -> Vec<f64> {
-        let mut slopes: Vec<f64> = self.segments.iter().map(|s| s.coeffs[1]).collect();
+        let mut slopes: Vec<f64> = self.segments.iter().map(|s| s.slope_at(0.0)).collect();
         slopes.push(self.end_slope());
         slopes
     }
@@ -295,10 +307,8 @@ mod tests {
         ]);
         for pair in spline.segments().windows(2) {
             let left = &pair[0];
-            let h = left.x_end - left.x_start;
-            let [_, b, c, d] = left.coeffs;
-            let slope_left_end = b + 2.0 * c * h + 3.0 * d * h * h;
-            let slope_right_start = pair[1].coeffs[1];
+            let slope_left_end = left.slope_at(left.x_end - left.x_start);
+            let slope_right_start = pair[1].slope_at(0.0);
             assert_close(slope_left_end, slope_right_start);
         }
     }

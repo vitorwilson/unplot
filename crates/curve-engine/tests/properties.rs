@@ -35,10 +35,11 @@ proptest! {
     fn fitted_spline_is_c1_across_every_join(knots in strictly_increasing_knots()) {
         let spline = Curve::new(knots).unwrap().fit();
         for pair in spline.segments().windows(2) {
-            let left = pair[0];
+            let left = &pair[0];
             let h = left.x_end - left.x_start;
-            let [_, b, c, d] = left.coeffs;
-            let left_end_slope = b + 2.0 * c * h + 3.0 * d * h * h;
+            // Fitted pieces are cubic: coeffs = [a, b, c, d] about x_start.
+            let c = &left.coeffs;
+            let left_end_slope = c[1] + 2.0 * c[2] * h + 3.0 * c[3] * h * h;
             let right_start_slope = pair[1].coeffs[1];
             prop_assert!(
                 (left_end_slope - right_start_slope).abs()
