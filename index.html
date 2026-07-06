@@ -54,6 +54,26 @@
         <button id="open-btn" type="button">Open</button>
         <button id="save-btn" type="button">Save</button>
       </div>
+      <section id="points-panel" class="points-panel">
+        <button id="points-toggle" class="points-toggle" type="button"></button>
+        <div id="points-body" class="points-body" hidden>
+          <textarea
+            id="points-input"
+            class="points-input"
+            spellcheck="false"
+            rows="6"
+            placeholder="x, y — one point per line&#10;0, 0&#10;1, 2"
+          ></textarea>
+          <div class="points-footer">
+            <button id="points-plot" type="button">Plot points</button>
+            <span
+              id="points-message"
+              class="points-message"
+              aria-live="polite"
+            ></span>
+          </div>
+        </div>
+      </section>
       <section id="latex-panel" class="latex-panel" hidden>
         <div class="latex-header">
           <button

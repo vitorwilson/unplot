@@ -51,6 +51,7 @@ export function installDrawing(
   redrawBackground: () => void,
   fitter: StrokeFitter,
   colorsOf: () => CanvasColors,
+  onCurveChange: (curve: FittedCurve | null) => void,
 ): {
   redraw: () => void;
   undo: () => void;
@@ -65,6 +66,11 @@ export function installDrawing(
   // drawing; null in normal edit mode. While set, its polyline replaces the
   // plane's curve and pointer editing/drawing is suspended.
   let derived: readonly Point[] | null = null;
+  // The curve last announced via onCurveChange; a reference change means the
+  // curve itself changed (fit/edit/translate/load/undo) rather than a mere
+  // repaint (pan/zoom/theme), so the Points mirror refreshes only when needed.
+  let notifiedCurve: FittedCurve | null = null;
+  let notified = false;
   let active: StrokeBuilder | null = null;
   let dragKind: DragKind | null = null;
   let dragIndex: number | null = null;
@@ -90,6 +96,11 @@ export function installDrawing(
     screenToWorld(vp, eventToScreen(event));
 
   const redraw = (): void => {
+    if (!notified || curve !== notifiedCurve) {
+      notified = true;
+      notifiedCurve = curve;
+      onCurveChange(curve);
+    }
     redrawBackground();
     const colors = colorsOf();
     if (derived) {

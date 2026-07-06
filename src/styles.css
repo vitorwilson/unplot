@@ -199,6 +199,77 @@ h1 {
   overflow-x: auto;
 }
 
+.points-panel {
+  width: min(860px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.points-toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--ink);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.points-toggle:hover {
+  color: var(--accent, #1565c0);
+}
+
+.points-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.9rem 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.points-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 7rem;
+  margin-top: 0.6rem;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.points-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#points-plot {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+#points-plot:hover {
+  border-color: var(--muted);
+}
+
+.points-message {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .hint {
   margin: 0;
   color: var(--muted);

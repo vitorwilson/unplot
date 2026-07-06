@@ -115,3 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documents through the native file dialog; opening a file loads it as the fully
   editable current curve (re-fit and re-derivable) and clears any calculus view.
   A saved curve created on one platform reopens identically on the others.
+- Point input (data plotting): a Points panel lets you type `x, y` per line and
+  Plot to build the curve from those points — sorted by x, with duplicate x
+  rejected (a function has one y per x). It mirrors the drawing two-way: drawing
+  or editing shows up as points, and editing the text and re-plotting updates the
+  curve, so typing and drawing combine on one point set. The field refreshes from
+  the canvas only when it is not focused, so it never clobbers mid-typing.

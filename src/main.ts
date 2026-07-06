@@ -15,6 +15,7 @@ import { openCurveDialog, saveCurveDialog } from "./files";
 import { tickStep, visibleGridLines } from "./grid";
 import { installLatexView, type LatexView } from "./latexView";
 import { installViewportControls } from "./navigate";
+import { installPointsView, type PointsController } from "./pointsView";
 import { installTheme, type CanvasColors } from "./theme";
 import { worldToScreen, type Point, type Viewport } from "./viewport";
 
@@ -244,6 +245,28 @@ function installFileControls(
   });
 }
 
+/** Wire the Points panel: typing `x, y` per line and pressing Plot rebuilds the
+ * curve from those points. Returns the controller (or `null` if the DOM is
+ * missing) so the caller can mirror curve changes back into the field. */
+function installPointsControls(
+  loadCurve: (curve: FittedCurve) => void,
+  resetDerived: () => void,
+): PointsController | null {
+  const toggleButton =
+    document.querySelector<HTMLButtonElement>("#points-toggle");
+  const body = document.querySelector<HTMLElement>("#points-body");
+  const textarea = document.querySelector<HTMLTextAreaElement>("#points-input");
+  const plotButton = document.querySelector<HTMLButtonElement>("#points-plot");
+  const message = document.querySelector<HTMLElement>("#points-message");
+  if (!toggleButton || !body || !textarea || !plotButton || !message) {
+    return null;
+  }
+  return installPointsView(
+    { toggleButton, body, textarea, plotButton, message },
+    { refit: refitCurve, loadCurve, resetDerived },
+  );
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
 if (canvas) {
   const ctx = setupCanvas(canvas);
@@ -266,6 +289,9 @@ if (canvas) {
 
   const redrawBackground = () => drawPlane(ctx, viewport, theme.colors());
   redrawBackground();
+  // Late-bound so installDrawing can announce curve changes to the Points panel,
+  // which is created afterward (it needs loadCurve from installDrawing).
+  let syncPoints: (curve: FittedCurve | null) => void = () => {};
   const {
     redraw,
     undo,
@@ -282,12 +308,18 @@ if (canvas) {
     redrawBackground,
     { fit: fitStroke, extend: extendStroke, refit: refitCurve },
     () => theme.colors(),
+    (curve) => syncPoints(curve),
   );
   repaint = redraw;
   installViewportControls(canvas, viewport, redraw);
   const math = installMathControls(currentCurve, showDerived, clearDerived);
   if (math) {
     installFileControls(math.view, currentCurve, loadCurve, math.calc);
+  }
+  const points = installPointsControls(loadCurve, () => math?.calc.reset());
+  if (points) {
+    syncPoints = points.syncFromCurve;
+    points.syncFromCurve(currentCurve()); // seed the empty field
   }
 
   // Undo/redo: Ctrl/Cmd+Z, and Ctrl/Cmd+Shift+Z or Ctrl+Y to redo.
