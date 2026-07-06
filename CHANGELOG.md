@@ -121,3 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or editing shows up as points, and editing the text and re-plotting updates the
   curve, so typing and drawing combine on one point set. The field refreshes from
   the canvas only when it is not focused, so it never clobbers mid-typing.
+- Prettier function (Phase 7, engine): when the drawn curve is basically a simple
+  function, the core can now propose a compact closed form (`approximate` module).
+  It samples the fitted spline and searches sparse least-squares fits over a fixed
+  basis `{1, x, x², x³, sin x, cos x, eˣ, ln x}` (log/exp auto-skipped where they
+  are undefined or overflow on the domain), snaps coefficients toward round values,
+  and reports honest max/RMS error — offering the fewest-term form only when its
+  error is within 3% of the curve's range, otherwise staying silent so the exact
+  piecewise output stands alone. Pure-Rust (nalgebra), deterministic, no CAS.

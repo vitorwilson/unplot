@@ -39,12 +39,25 @@ pub(crate) fn fmt_num(value: f64) -> String {
 /// same implicit multiplication (`2x`, `3(x - 1)`), so only the exponent differs.
 pub(crate) fn poly(seg: &Segment, exp_braces: bool) -> String {
     let x0 = seg.x_start;
+    join_terms(
+        seg.coeffs
+            .iter()
+            .enumerate()
+            .map(|(power, &coeff)| (coeff, power_factor(x0, power as u32, exp_braces))),
+    )
+}
+
+/// Join `(coefficient, factor)` terms into a signed sum, dropping near-zero
+/// coefficients, folding signs, and omitting a unit coefficient or empty factor
+/// (`1·x` → `x`, `3·""` → `3`). Shared by the polynomial renderer and the
+/// closed-form approximator so the sign/round rules live in one place.
+pub(crate) fn join_terms(terms: impl IntoIterator<Item = (f64, String)>) -> String {
     let mut out = String::new();
-    for (power, &coeff) in seg.coeffs.iter().enumerate() {
+    for (coeff, factor) in terms {
         if coeff.abs() < DISPLAY_EPS {
             continue;
         }
-        let term = poly_term(coeff.abs(), &power_factor(x0, power as u32, exp_braces));
+        let term = poly_term(coeff.abs(), &factor);
         if out.is_empty() {
             out.push_str(if coeff < 0.0 { "-" } else { "" });
         } else {
