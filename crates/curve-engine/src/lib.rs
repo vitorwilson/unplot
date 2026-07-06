@@ -14,6 +14,7 @@
 pub mod calculus;
 mod coeffs;
 mod curve;
+pub mod document;
 mod error;
 pub mod export;
 mod knot;

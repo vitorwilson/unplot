@@ -105,3 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to drawing" returns to the editable original. The panel labels the chain (e.g.
   `f → d/dx`) and flags, honestly, that a derivative is continuous but has
   corners at the knots while an integral is smooth.
+- Document format (Phase 6): the core serializes a curve to and from a versioned
+  `.unplot` JSON document (`document` module) — the source-of-truth knots (x, y,
+  optional tangent) and domain, never a rendered image — so a saved curve reopens
+  fully editable and re-derives its LaTeX and calculus. `from_json` checks the
+  schema version, refusing files newer than it understands and leaving one place
+  to migrate older ones forward. Round-trip tested.
