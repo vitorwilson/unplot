@@ -89,6 +89,24 @@ h1 {
   filter: brightness(1.08);
 }
 
+#dx-btn,
+#integral-btn,
+#calc-reset-btn {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+#dx-btn:hover,
+#integral-btn:hover,
+#calc-reset-btn:hover {
+  border-color: var(--muted);
+}
+
 .latex-panel {
   width: min(860px, 100%);
   border: 1px solid var(--border);

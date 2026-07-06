@@ -99,6 +99,54 @@ fn curve_latex(knots: Vec<KnotDto>) -> Result<CurveLatex, String> {
     })
 }
 
+/// A calculus operation the UI chains onto the drawn curve, arriving from the
+/// frontend as `"differentiate"` / `"integrate"`.
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum CalcOp {
+    Differentiate,
+    Integrate,
+}
+
+/// A calculus result for display: the transformed curve's polyline (to draw on
+/// the plane) plus its math in every copy format. The original knots stay the
+/// source of truth and `ops` is replayed on every click, so chaining never has
+/// to ship an intermediate (general-degree) curve back and forth.
+#[derive(Serialize)]
+struct CalcCurve {
+    polyline: Vec<[f64; 2]>,
+    summary: String,
+    latex: String,
+    desmos: String,
+    wolfram: String,
+}
+
+/// Fit `knots`, apply each calculus `op` left to right, and return the resulting
+/// curve for display. Differentiation and integration are analytic and live in
+/// the core; an empty `ops` returns the drawn curve unchanged.
+#[tauri::command]
+fn apply_calculus(knots: Vec<KnotDto>, ops: Vec<CalcOp>) -> Result<CalcCurve, String> {
+    let curve = Curve::new(to_knots(&knots)).map_err(|error| error.to_string())?;
+    let mut spline = curve.fit();
+    for op in &ops {
+        spline = match op {
+            CalcOp::Differentiate => curve_engine::calculus::differentiate(&spline),
+            CalcOp::Integrate => curve_engine::calculus::integrate(&spline),
+        };
+    }
+    Ok(CalcCurve {
+        polyline: spline
+            .polyline(POLYLINE_POINTS)
+            .iter()
+            .map(|&(x, y)| [x, y])
+            .collect(),
+        summary: curve_engine::latex::summary(&spline),
+        latex: curve_engine::latex::piecewise(&spline),
+        desmos: curve_engine::export::desmos(&spline),
+        wolfram: curve_engine::export::wolfram(&spline),
+    })
+}
+
 fn pairs(samples: &[[f64; 2]]) -> Vec<(f64, f64)> {
     samples.iter().map(|&[x, y]| (x, y)).collect()
 }
@@ -150,7 +198,8 @@ pub fn run() {
             fit_curve,
             extend_curve,
             refit_curve,
-            curve_latex
+            curve_latex,
+            apply_calculus
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -158,7 +207,9 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{curve_latex, extend_curve, fit_curve, refit_curve, KnotDto};
+    use super::{
+        apply_calculus, curve_latex, extend_curve, fit_curve, refit_curve, CalcOp, KnotDto,
+    };
 
     #[test]
     fn fits_a_drawn_line() {
@@ -229,6 +280,36 @@ mod tests {
         assert!(result.latex.contains("\\begin{cases}"));
         assert!(result.desmos.contains("\\left\\{"));
         assert!(result.wolfram.contains("Piecewise[{{"));
+    }
+
+    #[test]
+    fn apply_calculus_differentiates_a_line_to_a_constant() {
+        // f(x) = 2x  ⇒  f'(x) = 2 everywhere; the derivative polyline is flat at 2.
+        let result = apply_calculus(
+            vec![dto(0.0, 0.0, None), dto(2.0, 4.0, None)],
+            vec![CalcOp::Differentiate],
+        )
+        .unwrap();
+        assert!(result.polyline.iter().all(|&[_, y]| (y - 2.0).abs() < 1e-9));
+        assert!(result.latex.contains("\\begin{cases}"));
+        assert!(result.desmos.contains("\\left\\{"));
+    }
+
+    #[test]
+    fn apply_calculus_chains_integrate_then_differentiate_back_to_the_curve() {
+        // FTC end-to-end: d/dx ∫ f = f, so the chained polyline matches the drawn
+        // curve's within tolerance.
+        let knots = vec![
+            dto(0.0, 0.0, None),
+            dto(1.0, 2.0, None),
+            dto(2.0, -1.0, None),
+        ];
+        let original = apply_calculus(knots.clone(), vec![]).unwrap();
+        let recovered =
+            apply_calculus(knots, vec![CalcOp::Integrate, CalcOp::Differentiate]).unwrap();
+        for (o, r) in original.polyline.iter().zip(&recovered.polyline) {
+            assert!((o[1] - r[1]).abs() < 1e-6, "{} vs {}", o[1], r[1]);
+        }
     }
 
     fn dto(x: f64, y: f64, tangent: Option<f64>) -> KnotDto {

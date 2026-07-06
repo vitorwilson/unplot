@@ -56,8 +56,14 @@ export function installDrawing(
   undo: () => void;
   redo: () => void;
   currentCurve: () => FittedCurve | null;
+  showDerived: (polyline: readonly Point[]) => void;
+  clearDerived: () => void;
 } {
   let curve: FittedCurve | null = null;
+  // A derived (differentiated/integrated) curve to show read-only instead of the
+  // drawing; null in normal edit mode. While set, its polyline replaces the
+  // plane's curve and pointer editing/drawing is suspended.
+  let derived: readonly Point[] | null = null;
   let active: StrokeBuilder | null = null;
   let dragKind: DragKind | null = null;
   let dragIndex: number | null = null;
@@ -85,6 +91,12 @@ export function installDrawing(
   const redraw = (): void => {
     redrawBackground();
     const colors = colorsOf();
+    if (derived) {
+      // Derived (calculus) view: read-only, just the transformed curve — no knots
+      // or handles, since it is not the editable drawing.
+      drawPolyline(ctx, vp, derived, colors.curve);
+      return;
+    }
     if (curve) {
       drawPolyline(ctx, vp, curve.polyline, colors.curve);
       const knots = dragKnots ?? curve.knots;
@@ -272,7 +284,8 @@ export function installDrawing(
 
   canvas.addEventListener("pointerdown", (event) => {
     // Only the primary button edits/draws; others drive pan/zoom (navigate.ts).
-    if (event.button !== 0) {
+    // A derived (calculus) view is read-only.
+    if (event.button !== 0 || derived) {
       return;
     }
     if (beginEditDrag(event) || beginTranslate(event)) {
@@ -282,6 +295,9 @@ export function installDrawing(
   });
 
   canvas.addEventListener("pointermove", (event) => {
+    if (derived) {
+      return;
+    }
     if (moveEditDrag(event) || moveTranslate(event)) {
       return;
     }
@@ -291,6 +307,9 @@ export function installDrawing(
   });
 
   canvas.addEventListener("pointerup", (event) => {
+    if (derived) {
+      return;
+    }
     if (endEditDrag(event) || endTranslate(event)) {
       return;
     }
@@ -314,6 +333,14 @@ export function installDrawing(
     undo: () => restore(history.undo()),
     redo: () => restore(history.redo()),
     currentCurve: () => curve,
+    showDerived: (polyline: readonly Point[]) => {
+      derived = polyline;
+      redraw();
+    },
+    clearDerived: () => {
+      derived = null;
+      redraw();
+    },
   };
 }
 

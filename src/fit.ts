@@ -89,3 +89,27 @@ export interface CurveLatex {
 export async function curveLatex(knots: Knot[]): Promise<CurveLatex> {
   return invoke<CurveLatex>("curve_latex", { knots });
 }
+
+/** A calculus operation to chain onto the drawn curve. */
+export type CalcOp = "differentiate" | "integrate";
+
+/** A calculus result for display: the transformed curve's polyline (to draw) and
+ * its math in every copy format. Not editable — the drawn knots stay the source
+ * of truth and the operation stack is replayed on each request. */
+export interface CalcCurve extends CurveLatex {
+  polyline: Point[];
+}
+
+interface RawCalcCurve extends CurveLatex {
+  polyline: [number, number][];
+}
+
+/** Fit the drawn `knots`, apply each `op` in order through the core, and return
+ * the resulting curve (polyline + math). Rejects if the core refuses the knots. */
+export async function applyCalculus(
+  knots: Knot[],
+  ops: CalcOp[],
+): Promise<CalcCurve> {
+  const raw = await invoke<RawCalcCurve>("apply_calculus", { knots, ops });
+  return { ...raw, polyline: toPoints(raw.polyline) };
+}

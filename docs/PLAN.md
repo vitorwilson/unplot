@@ -195,16 +195,16 @@ drawn curve.
 
 **Goal:** one button turns the curve into its derivative or integral.
 
-- [ ] **Differentiate:** each cubic segment → its quadratic derivative. The result
+- [x] **Differentiate:** each cubic segment → its quadratic derivative. The result
   is a continuous piecewise-quadratic. (Honest note: the derivative of a C¹
   spline is C⁰ — continuous but with corners at knots — so a differentiated
   curve may not itself be C¹-smooth. Surface this rather than hide it.)
-- [ ] **Integrate:** each cubic segment → its quartic antiderivative, accumulating
+- [x] **Integrate:** each cubic segment → its quartic antiderivative, accumulating
   the definite integral up to each knot as the per-segment constant so the
   integral is **continuous across joins** (and C², nicely smooth).
-- [ ] The result is itself a displayable curve with its own LaTeX; chaining
+- [x] The result is itself a displayable curve with its own LaTeX; chaining
   (differentiate the integral, etc.) works.
-- [ ] All calculus is analytic and lives in the Rust core, fully unit-tested against
+- [x] All calculus is analytic and lives in the Rust core, fully unit-tested against
   known closed forms.
 
 **Done when:** derivative and integral are exact per segment, continuous where

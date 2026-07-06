@@ -99,3 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evaluate, render as LaTeX/Desmos/Wolfram, and chain (differentiate the
   integral, …). Segment coefficients generalized to variable degree to hold the
   higher-degree results.
+- Calculus UI (Phase 5): `d/dx` and `∫ dx` buttons replace the drawn curve on
+  the plane with its derivative or integral and show its math in the panel. The
+  result is read-only and chainable (differentiate the integral, …), and "Reset
+  to drawing" returns to the editable original. The panel labels the chain (e.g.
+  `f → d/dx`) and flags, honestly, that a derivative is continuous but has
+  corners at the knots while an integral is smooth.

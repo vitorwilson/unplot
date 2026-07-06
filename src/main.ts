@@ -3,17 +3,19 @@ import "./styles.css";
 import { canvasPixelSize } from "./dpr";
 import { installDrawing } from "./draw";
 import {
+  applyCalculus,
   curveLatex,
   extendStroke,
   fitStroke,
   refitCurve,
   type FittedCurve,
 } from "./fit";
+import { installCalculusView, type CalculusController } from "./calculusView";
 import { tickStep, visibleGridLines } from "./grid";
 import { installLatexView } from "./latexView";
 import { installViewportControls } from "./navigate";
 import { installTheme, type CanvasColors } from "./theme";
-import { worldToScreen, type Viewport } from "./viewport";
+import { worldToScreen, type Point, type Viewport } from "./viewport";
 
 // Phase 2: a Cartesian plane on Canvas 2D — grid, axes, labels, wheel-zoom and
 // right-drag-pan — with hard-block drawing and lift-and-resume on top.
@@ -132,9 +134,21 @@ function drawPlane(
   drawLabels(ctx, vp, step, colors.label);
 }
 
-/** Wire the "Done" button to render the current curve's LaTeX in the panel. */
-function installDoneButton(currentCurve: () => FittedCurve | null): void {
+/** Wire the math panel: "Done" renders the drawn curve's LaTeX; d/dx and ∫
+ * replace it with the derivative/integral (chainable) and Reset returns to the
+ * drawing — all sharing one panel view. Returns the calculus controller (or
+ * `null` if the DOM is missing) so the caller can suspend undo/redo while a
+ * derived curve is shown. */
+function installMathControls(
+  currentCurve: () => FittedCurve | null,
+  showDerived: (polyline: Point[]) => void,
+  clearDerived: () => void,
+): CalculusController | null {
   const doneBtn = document.querySelector<HTMLButtonElement>("#done-btn");
+  const dxBtn = document.querySelector<HTMLButtonElement>("#dx-btn");
+  const integralBtn =
+    document.querySelector<HTMLButtonElement>("#integral-btn");
+  const resetBtn = document.querySelector<HTMLButtonElement>("#calc-reset-btn");
   const panel = document.querySelector<HTMLElement>("#latex-panel");
   const summaryButton =
     document.querySelector<HTMLButtonElement>("#latex-summary");
@@ -145,6 +159,9 @@ function installDoneButton(currentCurve: () => FittedCurve | null): void {
   const math = document.querySelector<HTMLElement>("#latex-math");
   if (
     !doneBtn ||
+    !dxBtn ||
+    !integralBtn ||
+    !resetBtn ||
     !panel ||
     !summaryButton ||
     !formatSelect ||
@@ -152,7 +169,7 @@ function installDoneButton(currentCurve: () => FittedCurve | null): void {
     !body ||
     !math
   ) {
-    return;
+    return null;
   }
   const view = installLatexView({
     panel,
@@ -172,6 +189,21 @@ function installDoneButton(currentCurve: () => FittedCurve | null): void {
       .then((result) => view.show(result))
       .catch(() => view.message("Couldn't render the function."));
   });
+  return installCalculusView(
+    {
+      dxButton: dxBtn,
+      integralButton: integralBtn,
+      resetButton: resetBtn,
+      doneButton: doneBtn,
+    },
+    {
+      currentKnots: () => currentCurve()?.knots ?? null,
+      applyCalculus,
+      showDerived,
+      clearDerived,
+      view,
+    },
+  );
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
@@ -196,22 +228,27 @@ if (canvas) {
 
   const redrawBackground = () => drawPlane(ctx, viewport, theme.colors());
   redrawBackground();
-  const { redraw, undo, redo, currentCurve } = installDrawing(
-    canvas,
-    ctx,
-    viewport,
-    MAX_SLOPE,
-    redrawBackground,
-    { fit: fitStroke, extend: extendStroke, refit: refitCurve },
-    () => theme.colors(),
-  );
+  const { redraw, undo, redo, currentCurve, showDerived, clearDerived } =
+    installDrawing(
+      canvas,
+      ctx,
+      viewport,
+      MAX_SLOPE,
+      redrawBackground,
+      { fit: fitStroke, extend: extendStroke, refit: refitCurve },
+      () => theme.colors(),
+    );
   repaint = redraw;
   installViewportControls(canvas, viewport, redraw);
-  installDoneButton(currentCurve);
+  const calc = installMathControls(currentCurve, showDerived, clearDerived);
 
   // Undo/redo: Ctrl/Cmd+Z, and Ctrl/Cmd+Shift+Z or Ctrl+Y to redo.
   window.addEventListener("keydown", (event) => {
     if (!event.ctrlKey && !event.metaKey) {
+      return;
+    }
+    // Undo/redo belongs to the drawing; a derived (calculus) view ignores it.
+    if (calc?.isDerived()) {
       return;
     }
     const key = event.key.toLowerCase();

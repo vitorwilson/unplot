@@ -52,6 +52,7 @@ export interface LatexElements {
 export interface LatexView {
   show(result: CurveLatex): void;
   message(text: string): void;
+  hide(): void;
 }
 
 export function installLatexView(el: LatexElements): LatexView {
@@ -116,6 +117,11 @@ export function installLatexView(el: LatexElements): LatexView {
       el.formatSelect.hidden = true;
       el.body.hidden = true;
       el.summaryButton.textContent = text;
+    },
+    hide(): void {
+      current = null;
+      expanded = false;
+      el.panel.hidden = true;
     },
   };
 }
