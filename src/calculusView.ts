@@ -40,7 +40,7 @@ function derivedSummary(result: CalcCurve, ops: CalcOp[]): CurveLatex {
     latex: result.latex,
     desmos: result.desmos,
     wolfram: result.wolfram,
-    approximation: null,
+    approximation: result.approximation,
   };
 }
 

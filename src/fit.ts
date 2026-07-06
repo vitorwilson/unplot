@@ -103,16 +103,17 @@ export async function curveLatex(knots: Knot[]): Promise<CurveLatex> {
 /** A calculus operation to chain onto the drawn curve. */
 export type CalcOp = "differentiate" | "integrate";
 
-/** A calculus result for display: the transformed curve's polyline (to draw) and
- * its math in every copy format. Not editable — the drawn knots stay the source
- * of truth and the operation stack is replayed on each request. (No closed-form
- * approximation: the "prettier function" is offered for the drawn curve only.) */
+/** A calculus result for display: the transformed curve's polyline (to draw), its
+ * math in every copy format, and a closed-form approximation of the derivative /
+ * integral itself when one is trustworthy. Not editable — the drawn knots stay
+ * the source of truth and the operation stack is replayed on each request. */
 export interface CalcCurve {
   polyline: Point[];
   summary: string;
   latex: string;
   desmos: string;
   wolfram: string;
+  approximation: Approximation | null;
 }
 
 interface RawCalcCurve {
@@ -121,6 +122,7 @@ interface RawCalcCurve {
   latex: string;
   desmos: string;
   wolfram: string;
+  approximation: Approximation | null;
 }
 
 /** Fit the drawn `knots`, apply each `op` in order through the core, and return

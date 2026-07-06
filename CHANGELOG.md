@@ -134,4 +134,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `f(x) ≈ 2x²` rendered by KaTeX, with its max/RMS error as a percentage of the
   range and an "approximation" tag — above the exact piecewise output, which stays
   put and unchanged. The clean form has its own Copy button. When nothing is
-  trustworthy the headline is simply absent.
+  trustworthy the headline is simply absent. The same headline appears for a
+  derivative or integral (e.g. d/dx of a parabola shows `f(x) ≈ 2x`).

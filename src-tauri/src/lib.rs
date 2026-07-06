@@ -104,20 +104,26 @@ struct Approximation {
 fn curve_latex(knots: Vec<KnotDto>) -> Result<CurveLatex, String> {
     let curve = Curve::new(to_knots(&knots)).map_err(|error| error.to_string())?;
     let spline = curve.fit();
-    let approximation = curve_engine::approximate::closed_form(&spline).map(|form| {
-        let range = y_span(&spline).max(1e-6);
-        Approximation {
-            latex: form.latex,
-            max_error: form.max_error / range,
-            rms_error: form.rms_error / range,
-        }
-    });
     Ok(CurveLatex {
         summary: curve_engine::latex::summary(&spline),
         latex: curve_engine::latex::piecewise(&spline),
         desmos: curve_engine::export::desmos(&spline),
         wolfram: curve_engine::export::wolfram(&spline),
-        approximation,
+        approximation: approximate_curve(&spline),
+    })
+}
+
+/// The closed-form "prettier function" for a spline (Phase 7), with error as a
+/// fraction of the y-range, or `None` when no trustworthy form exists. Shared by
+/// the drawn curve and its derivative/integral.
+fn approximate_curve(spline: &curve_engine::Spline) -> Option<Approximation> {
+    curve_engine::approximate::closed_form(spline).map(|form| {
+        let range = y_span(spline).max(1e-6);
+        Approximation {
+            latex: form.latex,
+            max_error: form.max_error / range,
+            rms_error: form.rms_error / range,
+        }
     })
 }
 
@@ -149,6 +155,9 @@ struct CalcCurve {
     latex: String,
     desmos: String,
     wolfram: String,
+    /// A closed form for the derivative/integral itself (e.g. d/dx of a parabola
+    /// is `2x`), offered on the same terms as for the drawn curve.
+    approximation: Option<Approximation>,
 }
 
 /// Fit `knots`, apply each calculus `op` left to right, and return the resulting
@@ -174,6 +183,7 @@ fn apply_calculus(knots: Vec<KnotDto>, ops: Vec<CalcOp>) -> Result<CalcCurve, St
         latex: curve_engine::latex::piecewise(&spline),
         desmos: curve_engine::export::desmos(&spline),
         wolfram: curve_engine::export::wolfram(&spline),
+        approximation: approximate_curve(&spline),
     })
 }
 
@@ -366,6 +376,11 @@ mod tests {
         assert!(result.polyline.iter().all(|&[_, y]| (y - 2.0).abs() < 1e-9));
         assert!(result.latex.contains("\\begin{cases}"));
         assert!(result.desmos.contains("\\left\\{"));
+        // The derivative (the constant 2) also gets a prettier-function headline.
+        let approx = result
+            .approximation
+            .expect("the derivative should get a closed form");
+        assert!(approx.latex.contains('2'), "{}", approx.latex);
     }
 
     #[test]
