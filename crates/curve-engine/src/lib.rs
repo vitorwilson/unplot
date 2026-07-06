@@ -11,8 +11,10 @@
 
 #![forbid(unsafe_code)]
 
+mod coeffs;
 mod curve;
 mod error;
+pub mod export;
 mod knot;
 pub mod latex;
 mod resample;

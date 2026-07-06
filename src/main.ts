@@ -138,15 +138,26 @@ function installDoneButton(currentCurve: () => FittedCurve | null): void {
   const panel = document.querySelector<HTMLElement>("#latex-panel");
   const summaryButton =
     document.querySelector<HTMLButtonElement>("#latex-summary");
+  const formatSelect =
+    document.querySelector<HTMLSelectElement>("#latex-format");
   const copyButton = document.querySelector<HTMLButtonElement>("#latex-copy");
   const body = document.querySelector<HTMLElement>("#latex-body");
   const math = document.querySelector<HTMLElement>("#latex-math");
-  if (!doneBtn || !panel || !summaryButton || !copyButton || !body || !math) {
+  if (
+    !doneBtn ||
+    !panel ||
+    !summaryButton ||
+    !formatSelect ||
+    !copyButton ||
+    !body ||
+    !math
+  ) {
     return;
   }
   const view = installLatexView({
     panel,
     summaryButton,
+    formatSelect,
     copyButton,
     body,
     math,

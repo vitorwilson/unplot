@@ -177,13 +177,13 @@ Why separate from Phase 4: the existing "Copy LaTeX" hands over the raw
 piecewise as `\left\{cond: expr, …\right\}`, and Wolfram expects
 `Piecewise[{{expr, cond}, …}]`. Each target needs its own serializer.
 
-- [ ] **Desmos format:** emit the piecewise curve as Desmos-compatible input
+- [x] **Desmos format:** emit the piecewise curve as Desmos-compatible input
   (`\left\{…\right\}` piecewise LaTeX) and copy it to the clipboard.
-- [ ] **Wolfram format:** emit `Piecewise[{{expr, cond}, …}]` in Wolfram Language
+- [x] **Wolfram format:** emit `Piecewise[{{expr, cond}, …}]` in Wolfram Language
   syntax and copy it to the clipboard.
-- [ ] **Format picker** beside the Copy button: choose the target (raw LaTeX /
+- [x] **Format picker** beside the Copy button: choose the target (raw LaTeX /
   Desmos / Wolfram); copy the chosen form.
-- [ ] Generated **deterministically from the engine** like the LaTeX output, and
+- [x] Generated **deterministically from the engine** like the LaTeX output, and
   headless-unit-tested per target format.
 
 **Done when:** pasting the copied string into Desmos or Wolfram reproduces the

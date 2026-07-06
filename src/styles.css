@@ -114,6 +114,20 @@ h1 {
   color: var(--accent, #1565c0);
 }
 
+.latex-format {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.latex-format:hover {
+  border-color: var(--muted);
+}
+
 .latex-copy {
   margin-right: 0.6rem;
   background: var(--panel);

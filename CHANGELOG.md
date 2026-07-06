@@ -83,3 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   expandable to the full piecewise cases block.
 - Copy LaTeX: a button copies the function's LaTeX source to the clipboard, to
   paste into other tools.
+- Export to Desmos & Wolfram (Phase 4.5): the core also serializes the fitted
+  spline as Desmos piecewise LaTeX (`\left\{cond: expr, …\right\}`) and Wolfram
+  `Piecewise[{{expr, cond}, …}]` — deterministically, headless-tested per target
+  (`export::desmos`, `export::wolfram`). A format picker beside the Copy button
+  chooses which form (raw LaTeX / Desmos / Wolfram) lands on the clipboard, so a
+  drawn curve pastes straight into either tool. Shared number/polynomial
+  formatting moved into one `coeffs` module used by all three targets.

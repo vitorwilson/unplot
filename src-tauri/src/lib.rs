@@ -75,12 +75,16 @@ fn refit_curve(knots: Vec<KnotDto>) -> Result<FittedCurve, String> {
     Ok(render(&curve))
 }
 
-/// The exact function as LaTeX: a one-line summary (shown collapsed) and the full
-/// piecewise `cases` block (shown on expand). Pressing "Done" calls this.
+/// The exact function in every copy target: a one-line summary (shown collapsed),
+/// the KaTeX `cases` block (shown on expand and copied as raw LaTeX), and the
+/// Desmos / Wolfram paste forms. All are derived from one fit so a format switch
+/// in the UI needs no extra round-trip. Pressing "Done" calls this.
 #[derive(Serialize)]
 struct CurveLatex {
     summary: String,
     latex: String,
+    desmos: String,
+    wolfram: String,
 }
 
 #[tauri::command]
@@ -90,6 +94,8 @@ fn curve_latex(knots: Vec<KnotDto>) -> Result<CurveLatex, String> {
     Ok(CurveLatex {
         summary: curve_engine::latex::summary(&spline),
         latex: curve_engine::latex::piecewise(&spline),
+        desmos: curve_engine::export::desmos(&spline),
+        wolfram: curve_engine::export::wolfram(&spline),
     })
 }
 
@@ -217,10 +223,12 @@ mod tests {
     }
 
     #[test]
-    fn curve_latex_returns_a_summary_and_cases_block() {
+    fn curve_latex_returns_every_copy_format() {
         let result = curve_latex(vec![dto(0.0, 0.0, None), dto(2.0, 4.0, None)]).unwrap();
         assert_eq!(result.summary, "1-segment spline over [0, 2]");
         assert!(result.latex.contains("\\begin{cases}"));
+        assert!(result.desmos.contains("\\left\\{"));
+        assert!(result.wolfram.contains("Piecewise[{{"));
     }
 
     fn dto(x: f64, y: f64, tangent: Option<f64>) -> KnotDto {

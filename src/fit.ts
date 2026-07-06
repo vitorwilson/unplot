@@ -75,11 +75,14 @@ export async function refitCurve(knots: Knot[]): Promise<FittedCurve> {
   return shape(await invoke<RawCurve>("refit_curve", { knots }));
 }
 
-/** The curve's exact function as LaTeX: a one-line `summary` and the full
- * piecewise `latex` cases block. */
+/** The curve's exact function in every copy target: a one-line `summary`, the
+ * full piecewise `latex` cases block (also shown by KaTeX), and the Desmos /
+ * Wolfram paste forms. All are derived from one fit by the core. */
 export interface CurveLatex {
   summary: string;
   latex: string;
+  desmos: string;
+  wolfram: string;
 }
 
 /** Ask the core for the current curve's LaTeX (the "Done" action). */
