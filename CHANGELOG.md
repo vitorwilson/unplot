@@ -129,6 +129,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and reports honest max/RMS error — offering the fewest-term form only when its
   error is within 3% of the curve's range, otherwise staying silent so the exact
   piecewise output stands alone. Pure-Rust (nalgebra), deterministic, no CAS.
+- Prettier function — waves (Phase 7, step 2): the approximator now also fits a
+  free-frequency sinusoid `A·sin(ωx) + B·cos(ωx)` by sweeping ω (a periodogram),
+  catching a drawn wave of any frequency that the fixed frequency-1 trig basis
+  misses — e.g. `sin(2x)` or `3cos(1.5x)`. The fixed-basis and sinusoid strategies
+  compete and the simplest trustworthy form wins, still error-gated.
 - Prettier function UI (Phase 7): pressing Done now also asks the core for a
   closed form; when one is offered it appears as the headline of the math panel —
   `f(x) ≈ 2x²` rendered by KaTeX, with its max/RMS error as a percentage of the

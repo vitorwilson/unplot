@@ -1,14 +1,21 @@
 //! The "prettier function" (Phase 7): when the drawn curve is *basically* a
 //! simple function, offer a compact closed form beside the exact piecewise
-//! output — never instead of it. It samples the fitted spline and searches for a
-//! sparse least-squares fit against a fixed basis dictionary, reporting honest
-//! max/RMS error and offering the form only when that error is small enough to be
-//! trustworthy. Otherwise it returns `None` and the caller keeps the exact
-//! output. FOSS-only, pure-Rust (nalgebra); no CAS. Deterministic.
+//! output — never instead of it. Two strategies compete, both error-gated:
+//!
+//! 1. a sparse least-squares fit against a fixed basis dictionary (`{1, x, x²,
+//!    x³, sin x, cos x, eˣ, ln x}`) — nails "basically x²" or "basically eˣ";
+//! 2. a free-frequency sinusoid `A·sin(ωx) + B·cos(ωx) + C`, found by sweeping ω
+//!    (a periodogram) — catches a drawn wave of any frequency, which the fixed
+//!    frequency-1 trig basis misses.
+//!
+//! The simplest trustworthy form wins; if neither clears the error gate the
+//! result is `None` and the caller keeps the exact output. Reports honest max/RMS
+//! error. FOSS-only, pure-Rust (nalgebra); no CAS. Deterministic.
 
-use crate::coeffs::join_terms;
+use crate::coeffs::{fmt_num, join_terms, DISPLAY_EPS};
 use crate::spline::Spline;
 use nalgebra::{DMatrix, DVector};
+use std::f64::consts::PI;
 
 /// Points used to fit the coefficients.
 const FIT_SAMPLES: usize = 120;
@@ -23,8 +30,16 @@ const ABS_TOLERANCE: f64 = 1e-6;
 /// A basis value above this over the domain marks the function unusable there
 /// (`exp` blowing up), which also drops `ln` on any x ≤ 0 (it yields NaN/-inf).
 const USABLE_CAP: f64 = 1e10;
-/// Snap a coefficient to a round value when within this — "2.001x²" → "2x²".
+/// Snap a coefficient (or frequency) to a round value when within this.
 const SNAP: f64 = 0.02;
+/// Coarse frequencies tried in the sinusoid sweep, then refined locally.
+const SWEEP_STEPS: usize = 256;
+const REFINE_STEPS: usize = 40;
+/// Never sweep past this angular frequency, however dense the sampling.
+const OMEGA_CAP: f64 = 24.0;
+/// Require at least this many samples per period, so a claimed frequency is
+/// actually resolved by the sampling rather than aliased.
+const SAMPLES_PER_PERIOD: f64 = 6.0;
 
 /// A compact closed-form approximation with its honest error over the domain.
 pub struct ClosedForm {
@@ -35,6 +50,57 @@ pub struct ClosedForm {
     /// Root-mean-square error over the domain.
     pub rms_error: f64,
 }
+
+/// A fitted candidate before it competes with the others: its rendered form, its
+/// error, and how many terms it reads as (fewer is prettier).
+struct Candidate {
+    latex: String,
+    max_error: f64,
+    rms_error: f64,
+    terms: usize,
+}
+
+/// Try to describe the curve as a compact closed form. Returns `Some` only when a
+/// strategy fits accurately enough to be trustworthy; the simplest such form
+/// (fewest terms, then lowest RMS) is returned.
+///
+/// # Example
+/// ```
+/// use curve_engine::{approximate, Curve, Knot};
+/// // Knots on y = x² with matching slopes make the Hermite spline exactly x².
+/// let spline = Curve::new(vec![
+///     Knot::with_tangent(0.0, 0.0, 0.0),
+///     Knot::with_tangent(1.0, 1.0, 2.0),
+///     Knot::with_tangent(2.0, 4.0, 4.0),
+/// ])
+/// .unwrap()
+/// .fit();
+/// assert!(approximate::closed_form(&spline).unwrap().latex.contains("x^{2}"));
+/// ```
+pub fn closed_form(spline: &Spline) -> Option<ClosedForm> {
+    let (fit_x, fit_y) = sample(spline, FIT_SAMPLES);
+    let (err_x, err_y) = sample(spline, ERROR_SAMPLES);
+    let tolerance = REL_TOLERANCE * span(&err_y) + ABS_TOLERANCE;
+
+    [
+        basis_candidate(&fit_x, &fit_y, &err_x, &err_y, tolerance),
+        sinusoid_candidate(spline, &fit_x, &fit_y, &err_x, &err_y, tolerance),
+    ]
+    .into_iter()
+    .flatten()
+    .min_by(|a, b| {
+        a.terms
+            .cmp(&b.terms)
+            .then(a.rms_error.total_cmp(&b.rms_error))
+    })
+    .map(|best| ClosedForm {
+        latex: best.latex,
+        max_error: best.max_error,
+        rms_error: best.rms_error,
+    })
+}
+
+// --- Strategy 1: sparse fixed-basis least squares -------------------------------
 
 /// One dictionary entry: how to evaluate it and how it reads in LaTeX (the factor
 /// that a coefficient multiplies; empty for the constant term).
@@ -91,38 +157,23 @@ const DICTIONARY: &[Basis] = &[
     },
 ];
 
-/// Try to describe the curve as a compact closed form. Returns `Some` only when a
-/// sparse basis fit is accurate enough to be trustworthy.
-///
-/// # Example
-/// ```
-/// use curve_engine::{approximate, Curve, Knot};
-/// // Knots on y = x² with matching slopes make the Hermite spline exactly x².
-/// let spline = Curve::new(vec![
-///     Knot::with_tangent(0.0, 0.0, 0.0),
-///     Knot::with_tangent(1.0, 1.0, 2.0),
-///     Knot::with_tangent(2.0, 4.0, 4.0),
-/// ])
-/// .unwrap()
-/// .fit();
-/// assert!(approximate::closed_form(&spline).unwrap().latex.contains("x^{2}"));
-/// ```
-pub fn closed_form(spline: &Spline) -> Option<ClosedForm> {
-    let (fit_x, fit_y) = sample(spline, FIT_SAMPLES);
-    let (err_x, err_y) = sample(spline, ERROR_SAMPLES);
-    let usable = usable_basis(&fit_x);
-    let tolerance = REL_TOLERANCE * span(&err_y) + ABS_TOLERANCE;
-
-    // Prefer the fewest terms: search size 1 upward, and take the first size that
-    // yields a qualifying fit (lowest RMS among ties).
+/// The fewest-term basis fit whose error clears the gate, or `None`.
+fn basis_candidate(
+    fit_x: &[f64],
+    fit_y: &[f64],
+    err_x: &[f64],
+    err_y: &[f64],
+    tolerance: f64,
+) -> Option<Candidate> {
+    let usable = usable_basis(fit_x);
     for size in 1..=MAX_TERMS.min(usable.len()) {
         let best = combinations(&usable, size)
             .into_iter()
-            .filter_map(|subset| fit_subset(&subset, &fit_x, &fit_y, &err_x, &err_y))
+            .filter_map(|subset| fit_basis_subset(&subset, fit_x, fit_y, err_x, err_y))
             .filter(|form| form.max_error <= tolerance)
             .min_by(|a, b| a.rms_error.total_cmp(&b.rms_error));
         if best.is_some() {
-            return best;
+            return best; // fewer terms wins, so the first non-empty size is best
         }
     }
     None
@@ -131,20 +182,16 @@ pub fn closed_form(spline: &Spline) -> Option<ClosedForm> {
 /// Fit `subset` of the dictionary to the samples, prettify the coefficients, and
 /// measure error on the denser grid. `None` if the solve fails or every term
 /// rounds away.
-fn fit_subset(
+fn fit_basis_subset(
     subset: &[usize],
     fit_x: &[f64],
     fit_y: &[f64],
     err_x: &[f64],
     err_y: &[f64],
-) -> Option<ClosedForm> {
-    let design = DMatrix::from_fn(fit_x.len(), subset.len(), |i, j| {
+) -> Option<Candidate> {
+    let coeffs = solve(fit_x, fit_y, subset.len(), |i, j| {
         (DICTIONARY[subset[j]].eval)(fit_x[i])
-    });
-    let target = DVector::from_column_slice(fit_y);
-    let solved = design.svd(true, true).solve(&target, 1e-12).ok()?;
-    let coeffs: Vec<f64> = solved.iter().map(|&c| prettify(c)).collect();
-
+    })?;
     let approx = |x: f64| -> f64 {
         subset
             .iter()
@@ -153,26 +200,12 @@ fn fit_subset(
             .sum()
     };
     let (max_error, rms_error) = errors(&approx, err_x, err_y)?;
-
-    let expression = join_terms(
-        subset
-            .iter()
-            .zip(&coeffs)
-            .map(|(&idx, &c)| (c, DICTIONARY[idx].latex.to_string())),
-    );
-    if expression == "0" {
-        return None; // every term rounded away — not a real form
-    }
-    Some(ClosedForm {
-        latex: format!("f(x) \\approx {expression}"),
-        max_error,
-        rms_error,
-    })
-}
-
-/// Sample the spline at `n` points, split into parallel x and y vectors.
-fn sample(spline: &Spline, n: usize) -> (Vec<f64>, Vec<f64>) {
-    spline.polyline(n).into_iter().unzip()
+    let pairs: Vec<(f64, String)> = subset
+        .iter()
+        .zip(&coeffs)
+        .map(|(&idx, &c)| (c, DICTIONARY[idx].latex.to_string()))
+        .collect();
+    candidate(&pairs, max_error, rms_error)
 }
 
 /// Dictionary indices whose values are finite and bounded over the domain, so a
@@ -186,6 +219,147 @@ fn usable_basis(fit_x: &[f64]) -> Vec<usize> {
             })
         })
         .collect()
+}
+
+// --- Strategy 2: free-frequency sinusoid ---------------------------------------
+
+/// The best single sinusoid `A·sin(ωx) + B·cos(ωx) + C` for a curve whose shape
+/// is a wave of arbitrary frequency, or `None`. ω is found by sweeping (a
+/// periodogram) then refining and snapping toward a round value.
+fn sinusoid_candidate(
+    spline: &Spline,
+    fit_x: &[f64],
+    fit_y: &[f64],
+    err_x: &[f64],
+    err_y: &[f64],
+    tolerance: f64,
+) -> Option<Candidate> {
+    let (a, b) = spline.domain();
+    let length = b - a;
+    if length <= ABS_TOLERANCE {
+        return None;
+    }
+    // From "half a wave spans the domain" up to what the sampling can resolve.
+    let omega_min = PI / length;
+    let omega_max = (PI * FIT_SAMPLES as f64 / (SAMPLES_PER_PERIOD * length)).min(OMEGA_CAP);
+    if omega_max <= omega_min {
+        return None;
+    }
+
+    let coarse = best_frequency(fit_x, fit_y, omega_min, omega_max, SWEEP_STEPS)?;
+    let step = (omega_max - omega_min) / SWEEP_STEPS as f64;
+    let refined = best_frequency(
+        fit_x,
+        fit_y,
+        (coarse - step).max(omega_min),
+        (coarse + step).min(omega_max),
+        REFINE_STEPS,
+    )?;
+    let omega = prettify(refined);
+
+    let coeffs: Vec<f64> = solve_sinusoid(fit_x, fit_y, omega)?
+        .iter()
+        .map(|&c| prettify(c))
+        .collect();
+    let approx = |x: f64| coeffs[0] + coeffs[1] * (omega * x).sin() + coeffs[2] * (omega * x).cos();
+    let (max_error, rms_error) = errors(&approx, err_x, err_y)?;
+    if max_error > tolerance {
+        return None;
+    }
+    let pairs = vec![
+        (coeffs[0], String::new()),
+        (coeffs[1], format!("\\sin({})", angle(omega))),
+        (coeffs[2], format!("\\cos({})", angle(omega))),
+    ];
+    candidate(&pairs, max_error, rms_error)
+}
+
+/// The frequency in `[lo, hi]` (over `steps` samples) with the smallest sinusoid
+/// residual on the fit points.
+fn best_frequency(fit_x: &[f64], fit_y: &[f64], lo: f64, hi: f64, steps: usize) -> Option<f64> {
+    let mut best: Option<(f64, f64)> = None; // (residual, omega)
+    for i in 0..=steps {
+        let omega = lo + (hi - lo) * i as f64 / steps as f64;
+        if let Some(residual) = sinusoid_residual(fit_x, fit_y, omega) {
+            let improves = match best {
+                Some((r, _)) => residual < r,
+                None => true,
+            };
+            if improves {
+                best = Some((residual, omega));
+            }
+        }
+    }
+    best.map(|(_, omega)| omega)
+}
+
+/// Sum of squared residuals of the best `{1, sin(ωx), cos(ωx)}` fit at `omega`.
+fn sinusoid_residual(fit_x: &[f64], fit_y: &[f64], omega: f64) -> Option<f64> {
+    let coeffs = solve_sinusoid(fit_x, fit_y, omega)?;
+    let sse = fit_x
+        .iter()
+        .zip(fit_y)
+        .map(|(&x, &y)| {
+            let v = coeffs[0] + coeffs[1] * (omega * x).sin() + coeffs[2] * (omega * x).cos();
+            (v - y) * (v - y)
+        })
+        .sum();
+    Some(sse)
+}
+
+/// Least-squares `[C, A, B]` for `C + A·sin(ωx) + B·cos(ωx)`.
+fn solve_sinusoid(fit_x: &[f64], fit_y: &[f64], omega: f64) -> Option<Vec<f64>> {
+    solve(fit_x, fit_y, 3, |i, j| match j {
+        0 => 1.0,
+        1 => (omega * fit_x[i]).sin(),
+        _ => (omega * fit_x[i]).cos(),
+    })
+}
+
+/// The `ωx` argument of a trig term: `x` for ω = 1, else `2x`, `0.5x`, …
+fn angle(omega: f64) -> String {
+    if (omega - 1.0).abs() < DISPLAY_EPS {
+        "x".to_string()
+    } else {
+        format!("{}x", fmt_num(omega))
+    }
+}
+
+// --- Shared helpers ------------------------------------------------------------
+
+/// Solve the least-squares system whose design matrix is `columns` wide with
+/// entries `entry(row, col)`, against `fit_y`. `None` if the SVD solve fails.
+fn solve(
+    fit_x: &[f64],
+    fit_y: &[f64],
+    columns: usize,
+    entry: impl Fn(usize, usize) -> f64,
+) -> Option<Vec<f64>> {
+    let design = DMatrix::from_fn(fit_x.len(), columns, entry);
+    let target = DVector::from_column_slice(fit_y);
+    let solved = design.svd(true, true).solve(&target, 1e-12).ok()?;
+    Some(solved.iter().copied().collect())
+}
+
+/// Build a candidate from `(coefficient, factor)` term pairs — its rendered LaTeX
+/// and how many terms survive. `None` when every term rounds away (`"0"`).
+fn candidate(pairs: &[(f64, String)], max_error: f64, rms_error: f64) -> Option<Candidate> {
+    let terms = pairs.iter().filter(|(c, _)| c.abs() >= DISPLAY_EPS).count();
+    let expression = join_terms(pairs.iter().cloned());
+    if expression == "0" {
+        return None;
+    }
+    Some(Candidate {
+        latex: format!("f(x) \\approx {expression}"),
+        max_error,
+        rms_error,
+        terms,
+    })
+}
+
+/// Sample the spline at `n` points, split into parallel x and y vectors.
+fn sample(spline: &Spline, n: usize) -> (Vec<f64>, Vec<f64>) {
+    spline.polyline(n).into_iter().unzip()
 }
 
 /// Max and RMS error of `approx` against the samples; `None` on any non-finite.
@@ -211,8 +385,8 @@ fn span(ys: &[f64]) -> f64 {
     (hi - lo).max(0.0)
 }
 
-/// Snap a coefficient toward a round value (integer, then half) for a clean form;
-/// error is remeasured after snapping, so this never hides a poor fit.
+/// Snap a value toward a round one (integer, then half) for a clean form; error
+/// is remeasured after snapping, so this never hides a poor fit.
 fn prettify(c: f64) -> f64 {
     let integer = c.round();
     if (c - integer).abs() < SNAP {
@@ -261,8 +435,24 @@ mod tests {
         Curve::new(knots).unwrap().fit()
     }
 
-    /// Knots on a polynomial with matching slopes make the Hermite spline that
-    /// exact polynomial, so the approximator should recover it with ~0 error.
+    /// A spline that closely follows `f` by pinning each knot's value and slope,
+    /// so tests can feed the approximator a known function.
+    fn spline_of(
+        f: impl Fn(f64) -> f64,
+        df: impl Fn(f64) -> f64,
+        a: f64,
+        b: f64,
+        n: usize,
+    ) -> Spline {
+        let knots = (0..n)
+            .map(|i| {
+                let x = a + (b - a) * i as f64 / (n - 1) as f64;
+                Knot::with_tangent(x, f(x), df(x))
+            })
+            .collect();
+        Curve::new(knots).unwrap().fit()
+    }
+
     fn parabola() -> Spline {
         fit(vec![
             Knot::with_tangent(0.0, 0.0, 0.0),
@@ -288,7 +478,6 @@ mod tests {
 
     #[test]
     fn prefers_the_fewest_terms() {
-        // The line is exactly one term (2x); it must not be dressed up with extras.
         let form = closed_form(&fit(vec![Knot::new(0.0, 0.0), Knot::new(2.0, 4.0)])).unwrap();
         assert_eq!(form.latex, "f(x) \\approx 2x");
     }
@@ -301,9 +490,32 @@ mod tests {
     }
 
     #[test]
+    fn recovers_a_higher_frequency_sine() {
+        // sin(2x) over one period [0, π]: the fixed frequency-1 basis can't express
+        // it, but the sinusoid sweep finds ω = 2.
+        let spline = spline_of(|x| (2.0 * x).sin(), |x| 2.0 * (2.0 * x).cos(), 0.0, PI, 13);
+        let form = closed_form(&spline).unwrap();
+        assert!(form.latex.contains("\\sin(2x)"), "{}", form.latex);
+        assert!(form.max_error < 0.03, "max error {}", form.max_error);
+    }
+
+    #[test]
+    fn recovers_a_shifted_cosine_wave() {
+        // 3·cos(1.5x): a wave the fixed basis misses on both amplitude and freq.
+        let spline = spline_of(
+            |x| 3.0 * (1.5 * x).cos(),
+            |x| -4.5 * (1.5 * x).sin(),
+            0.0,
+            4.0,
+            15,
+        );
+        let form = closed_form(&spline).unwrap();
+        assert!(form.latex.contains("\\cos(1.5x)"), "{}", form.latex);
+        assert!(form.latex.contains('3'), "{}", form.latex);
+    }
+
+    #[test]
     fn stays_silent_for_a_squiggle() {
-        // A high-frequency zigzag is no simple function; offer nothing rather than
-        // a false promise.
         let form = closed_form(&fit(vec![
             Knot::new(0.0, 0.0),
             Knot::new(1.0, 2.0),
@@ -318,18 +530,11 @@ mod tests {
 
     #[test]
     fn skips_log_over_negative_x_without_panicking() {
-        // Domain spans negatives, so ln is unusable — must not NaN or panic.
-        let form = closed_form(&parabola_over_negatives());
-        // A parabola about the origin is still x²-ish; the point is no crash.
-        let _ = form;
-    }
-
-    fn parabola_over_negatives() -> Spline {
-        fit(vec![
+        let _ = closed_form(&fit(vec![
             Knot::with_tangent(-1.0, 1.0, -2.0),
             Knot::with_tangent(0.0, 0.0, 0.0),
             Knot::with_tangent(1.0, 1.0, 2.0),
-        ])
+        ]));
     }
 
     #[test]

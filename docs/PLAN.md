@@ -245,7 +245,9 @@ first:
    "…basically a sine." **✓ Shipped** — the `approximate` module (error-gated,
    pure-Rust).
 2. **Chebyshev / Fourier series** → readable closed form *when it collapses to a
-   few terms*.
+   few terms*. **✓ Shipped** — a free-frequency sinusoid fit (a periodogram
+   sweep of ω), the practical realization for a drawn wave of arbitrary frequency
+   that fixed harmonics would miss.
 3. **Padé / rational** approximation for pole-shaped curves.
 4. **Only then**, an opt-in "try harder" mode via heavier symbolic regression
    (e.g. a PySR sidecar) — possibly slow, clearly optional.
