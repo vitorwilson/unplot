@@ -1,5 +1,6 @@
 import "katex/dist/katex.min.css";
-import "./styles.css";
+// styles.css is loaded render-blocking via a <link> in index.html (avoids a
+// flash of unstyled layout on reload), so it is not imported here.
 import { canvasPixelSize } from "./dpr";
 import { installDrawing } from "./draw";
 import {

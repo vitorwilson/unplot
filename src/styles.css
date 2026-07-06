@@ -60,6 +60,10 @@ h1 {
 }
 
 #plane {
+  /* Reserve the canvas size before the JS resizes it, so a reload does not jump
+     from the browser default (300×150). Mirrors CSS_WIDTH/CSS_HEIGHT in main.ts. */
+  width: 860px;
+  height: 600px;
   /* Breathing room so the tagline and hint don't crowd the plane. */
   margin: 0.75rem 0;
   background: var(--panel);

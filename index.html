@@ -33,6 +33,9 @@
         }
       })();
     </script>
+    <!-- Load styles render-blocking so a reload never flashes unstyled layout
+         before the JS module runs (Vite bundles this in the build). -->
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
     <button

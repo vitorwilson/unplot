@@ -136,3 +136,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   put and unchanged. The clean form has its own Copy button. When nothing is
   trustworthy the headline is simply absent. The same headline appears for a
   derivative or integral (e.g. d/dx of a parabola shows `f(x) ≈ 2x`).
+
+### Fixed
+
+- Reload no longer flashes: `styles.css` now loads render-blocking via a `<link>`
+  in `index.html` (instead of being injected by JS after first paint), and the
+  canvas reserves its size in CSS, so a reload no longer shows an instant of
+  unstyled layout or a jump from the browser-default canvas size.
