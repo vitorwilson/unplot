@@ -23,8 +23,10 @@ import { installPointsView, type PointsController } from "./pointsView";
 import { installTheme, type CanvasColors } from "./theme";
 import { worldToScreen, type Point, type Viewport } from "./viewport";
 
-// Phase 2: a Cartesian plane on Canvas 2D — grid, axes, labels, wheel-zoom and
-// right-drag-pan — with hard-block drawing and lift-and-resume on top.
+// App entry point: draw the Cartesian plane on Canvas 2D (grid, axes, labels,
+// wheel-zoom, pan) and wire up every control — drawing, editing, the points
+// panel, the math/calculus panel, files, the About dialog, theming, and undo.
+// Each control lives in its own module; this file only composes them.
 
 const CSS_WIDTH = 860;
 const CSS_HEIGHT = 600;
