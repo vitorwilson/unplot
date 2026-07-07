@@ -3,20 +3,23 @@
 //! output — never instead of it. Two strategies compete, both error-gated:
 //!
 //! 1. a sparse least-squares fit against a fixed basis dictionary (`{1, x, x²,
-//!    x³, sin x, cos x, eˣ, ln x}`) — nails "basically x²" or "basically eˣ";
+//!    x³, sin x, cos x, eˣ, ln x}`) — nails "basically x²" or "basically eˣ"
+//!    ([`basis`]);
 //! 2. a free-frequency sinusoid `A·sin(ωx) + B·cos(ωx) + C`, found by sweeping ω
 //!    (a periodogram) — catches a drawn wave of any frequency, which the fixed
-//!    frequency-1 trig basis misses.
+//!    frequency-1 trig basis misses ([`sinusoid`]).
 //!
 //! The simplest trustworthy form wins; if neither clears the error gate the
 //! result is `None` and the caller keeps the exact output. Reports honest max/RMS
 //! error. FOSS-only, pure-Rust (nalgebra); no CAS. Deterministic.
 
-use crate::coeffs::{fmt_num, join_terms, DISPLAY_EPS};
+use crate::coeffs::{join_terms, DISPLAY_EPS};
 use crate::knot::Knot;
 use crate::spline::Spline;
 use nalgebra::{DMatrix, DVector};
-use std::f64::consts::PI;
+
+mod basis;
+mod sinusoid;
 
 /// Points used to fit the coefficients.
 const FIT_SAMPLES: usize = 120;
@@ -109,7 +112,7 @@ pub fn closed_form_of_knots(knots: &[Knot]) -> Option<ClosedForm> {
     fit_closed_form(&xs, &ys, &xs, &ys, domain)
 }
 
-/// The best trustworthy closed form for samples fitted over `domain`: the two
+/// The best trustworthy closed form for samples fitted over `domain`: the three
 /// strategies compete and the simplest that clears the error gate (fewest terms,
 /// then lowest RMS) wins, or `None`.
 fn fit_closed_form(
@@ -121,8 +124,8 @@ fn fit_closed_form(
 ) -> Option<ClosedForm> {
     let tolerance = REL_TOLERANCE * span(err_y) + ABS_TOLERANCE;
     [
-        basis_candidate(fit_x, fit_y, err_x, err_y, tolerance),
-        sinusoid_candidate(domain, fit_x, fit_y, err_x, err_y, tolerance),
+        basis::basis_candidate(fit_x, fit_y, err_x, err_y, tolerance),
+        sinusoid::sinusoid_candidate(domain, fit_x, fit_y, err_x, err_y, tolerance),
     ]
     .into_iter()
     .flatten()
@@ -136,240 +139,6 @@ fn fit_closed_form(
         max_error: best.max_error,
         rms_error: best.rms_error,
     })
-}
-
-// --- Strategy 1: sparse fixed-basis least squares -------------------------------
-
-/// One dictionary entry: how to evaluate it and how it reads in LaTeX (the factor
-/// that a coefficient multiplies; empty for the constant term).
-struct Basis {
-    eval: fn(f64) -> f64,
-    latex: &'static str,
-}
-
-fn one(_: f64) -> f64 {
-    1.0
-}
-fn linear(x: f64) -> f64 {
-    x
-}
-fn square(x: f64) -> f64 {
-    x * x
-}
-fn cube(x: f64) -> f64 {
-    x * x * x
-}
-
-const DICTIONARY: &[Basis] = &[
-    Basis {
-        eval: one,
-        latex: "",
-    },
-    Basis {
-        eval: linear,
-        latex: "x",
-    },
-    Basis {
-        eval: square,
-        latex: "x^{2}",
-    },
-    Basis {
-        eval: cube,
-        latex: "x^{3}",
-    },
-    Basis {
-        eval: f64::sin,
-        latex: "\\sin x",
-    },
-    Basis {
-        eval: f64::cos,
-        latex: "\\cos x",
-    },
-    Basis {
-        eval: f64::exp,
-        latex: "e^{x}",
-    },
-    Basis {
-        eval: f64::ln,
-        latex: "\\ln x",
-    },
-];
-
-/// The fewest-term basis fit whose error clears the gate, or `None`.
-fn basis_candidate(
-    fit_x: &[f64],
-    fit_y: &[f64],
-    err_x: &[f64],
-    err_y: &[f64],
-    tolerance: f64,
-) -> Option<Candidate> {
-    let usable = usable_basis(fit_x);
-    // A clean fit is only *evidence* of a shape when it has more points than free
-    // terms: an n-point set passes exactly through any n-term basis, so allowing
-    // size == n would "recognize" noise and, on ties, pick an ugly exact fit (a
-    // 2-point line read as `1 + 0.5x³`). Require at least one residual degree of
-    // freedom — which only bites the knots path, as the spline path samples 120.
-    let max_terms = MAX_TERMS
-        .min(usable.len())
-        .min(fit_x.len().saturating_sub(1));
-    for size in 1..=max_terms {
-        let best = combinations(&usable, size)
-            .into_iter()
-            .filter_map(|subset| fit_basis_subset(&subset, fit_x, fit_y, err_x, err_y))
-            .filter(|form| form.max_error <= tolerance)
-            .min_by(|a, b| a.rms_error.total_cmp(&b.rms_error));
-        if best.is_some() {
-            return best; // fewer terms wins, so the first non-empty size is best
-        }
-    }
-    None
-}
-
-/// Fit `subset` of the dictionary to the samples, prettify the coefficients, and
-/// measure error on the denser grid. `None` if the solve fails or every term
-/// rounds away.
-fn fit_basis_subset(
-    subset: &[usize],
-    fit_x: &[f64],
-    fit_y: &[f64],
-    err_x: &[f64],
-    err_y: &[f64],
-) -> Option<Candidate> {
-    let coeffs = solve(fit_x, fit_y, subset.len(), |i, j| {
-        (DICTIONARY[subset[j]].eval)(fit_x[i])
-    })?;
-    let approx = |x: f64| -> f64 {
-        subset
-            .iter()
-            .zip(&coeffs)
-            .map(|(&idx, &c)| c * (DICTIONARY[idx].eval)(x))
-            .sum()
-    };
-    let (max_error, rms_error) = errors(&approx, err_x, err_y)?;
-    let pairs: Vec<(f64, String)> = subset
-        .iter()
-        .zip(&coeffs)
-        .map(|(&idx, &c)| (c, DICTIONARY[idx].latex.to_string()))
-        .collect();
-    candidate(&pairs, max_error, rms_error)
-}
-
-/// Dictionary indices whose values are finite and bounded over the domain, so a
-/// domain-restricted function (`ln` on x ≤ 0, `exp` overflowing) is skipped.
-fn usable_basis(fit_x: &[f64]) -> Vec<usize> {
-    (0..DICTIONARY.len())
-        .filter(|&j| {
-            fit_x.iter().all(|&x| {
-                let v = (DICTIONARY[j].eval)(x);
-                v.is_finite() && v.abs() <= USABLE_CAP
-            })
-        })
-        .collect()
-}
-
-// --- Strategy 2: free-frequency sinusoid ---------------------------------------
-
-/// The best single sinusoid `A·sin(ωx) + B·cos(ωx) + C` for a curve whose shape
-/// is a wave of arbitrary frequency, or `None`. ω is found by sweeping (a
-/// periodogram) then refining and snapping toward a round value.
-fn sinusoid_candidate(
-    domain: (f64, f64),
-    fit_x: &[f64],
-    fit_y: &[f64],
-    err_x: &[f64],
-    err_y: &[f64],
-    tolerance: f64,
-) -> Option<Candidate> {
-    let (a, b) = domain;
-    let length = b - a;
-    if length <= ABS_TOLERANCE {
-        return None;
-    }
-    // From "half a wave spans the domain" up to what the sampling can resolve —
-    // capped by the actual point count so a claimed frequency is not aliased.
-    let omega_min = PI / length;
-    let omega_max = (PI * fit_x.len() as f64 / (SAMPLES_PER_PERIOD * length)).min(OMEGA_CAP);
-    if omega_max <= omega_min {
-        return None;
-    }
-
-    let coarse = best_frequency(fit_x, fit_y, omega_min, omega_max, SWEEP_STEPS)?;
-    let step = (omega_max - omega_min) / SWEEP_STEPS as f64;
-    let refined = best_frequency(
-        fit_x,
-        fit_y,
-        (coarse - step).max(omega_min),
-        (coarse + step).min(omega_max),
-        REFINE_STEPS,
-    )?;
-    let omega = prettify(refined);
-
-    let coeffs: Vec<f64> = solve_sinusoid(fit_x, fit_y, omega)?
-        .iter()
-        .map(|&c| prettify(c))
-        .collect();
-    let approx = |x: f64| coeffs[0] + coeffs[1] * (omega * x).sin() + coeffs[2] * (omega * x).cos();
-    let (max_error, rms_error) = errors(&approx, err_x, err_y)?;
-    if max_error > tolerance {
-        return None;
-    }
-    let pairs = vec![
-        (coeffs[0], String::new()),
-        (coeffs[1], format!("\\sin({})", angle(omega))),
-        (coeffs[2], format!("\\cos({})", angle(omega))),
-    ];
-    candidate(&pairs, max_error, rms_error)
-}
-
-/// The frequency in `[lo, hi]` (over `steps` samples) with the smallest sinusoid
-/// residual on the fit points.
-fn best_frequency(fit_x: &[f64], fit_y: &[f64], lo: f64, hi: f64, steps: usize) -> Option<f64> {
-    let mut best: Option<(f64, f64)> = None; // (residual, omega)
-    for i in 0..=steps {
-        let omega = lo + (hi - lo) * i as f64 / steps as f64;
-        if let Some(residual) = sinusoid_residual(fit_x, fit_y, omega) {
-            let improves = match best {
-                Some((r, _)) => residual < r,
-                None => true,
-            };
-            if improves {
-                best = Some((residual, omega));
-            }
-        }
-    }
-    best.map(|(_, omega)| omega)
-}
-
-/// Sum of squared residuals of the best `{1, sin(ωx), cos(ωx)}` fit at `omega`.
-fn sinusoid_residual(fit_x: &[f64], fit_y: &[f64], omega: f64) -> Option<f64> {
-    let coeffs = solve_sinusoid(fit_x, fit_y, omega)?;
-    let sse = fit_x
-        .iter()
-        .zip(fit_y)
-        .map(|(&x, &y)| {
-            let v = coeffs[0] + coeffs[1] * (omega * x).sin() + coeffs[2] * (omega * x).cos();
-            (v - y) * (v - y)
-        })
-        .sum();
-    Some(sse)
-}
-
-/// Least-squares `[C, A, B]` for `C + A·sin(ωx) + B·cos(ωx)`.
-fn solve_sinusoid(fit_x: &[f64], fit_y: &[f64], omega: f64) -> Option<Vec<f64>> {
-    solve(fit_x, fit_y, 3, |i, j| match j {
-        0 => 1.0,
-        1 => (omega * fit_x[i]).sin(),
-        _ => (omega * fit_x[i]).cos(),
-    })
-}
-
-/// The `ωx` argument of a trig term: `x` for ω = 1, else `2x`, `0.5x`, …
-fn angle(omega: f64) -> String {
-    if (omega - 1.0).abs() < DISPLAY_EPS {
-        "x".to_string()
-    } else {
-        format!("{}x", fmt_num(omega))
-    }
 }
 
 // --- Shared helpers ------------------------------------------------------------
@@ -446,57 +215,13 @@ fn prettify(c: f64) -> f64 {
     (c * 1000.0).round() / 1000.0
 }
 
-/// Every `size`-element combination of `items`, in a deterministic order.
-fn combinations(items: &[usize], size: usize) -> Vec<Vec<usize>> {
-    let n = items.len();
-    let mut out = Vec::new();
-    if size == 0 || size > n {
-        return out;
-    }
-    let mut c: Vec<usize> = (0..size).collect();
-    loop {
-        out.push(c.iter().map(|&i| items[i]).collect());
-        let mut i = size;
-        loop {
-            if i == 0 {
-                return out;
-            }
-            i -= 1;
-            if c[i] < n - size + i {
-                break;
-            }
-        }
-        c[i] += 1;
-        for j in i + 1..size {
-            c[j] = c[j - 1] + 1;
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{Curve, Knot};
+    use std::f64::consts::PI;
 
     fn fit(knots: Vec<Knot>) -> Spline {
-        Curve::new(knots).unwrap().fit()
-    }
-
-    /// A spline that closely follows `f` by pinning each knot's value and slope,
-    /// so tests can feed the approximator a known function.
-    fn spline_of(
-        f: impl Fn(f64) -> f64,
-        df: impl Fn(f64) -> f64,
-        a: f64,
-        b: f64,
-        n: usize,
-    ) -> Spline {
-        let knots = (0..n)
-            .map(|i| {
-                let x = a + (b - a) * i as f64 / (n - 1) as f64;
-                Knot::with_tangent(x, f(x), df(x))
-            })
-            .collect();
         Curve::new(knots).unwrap().fit()
     }
 
@@ -506,6 +231,18 @@ mod tests {
             Knot::with_tangent(1.0, 1.0, 2.0),
             Knot::with_tangent(2.0, 4.0, 4.0),
         ])
+    }
+
+    /// Points a user would *type* — coordinates only, no tangents — for the given
+    /// function over `[a, b]`. The PCHIP fit these produce is a poor wave (peaks
+    /// flattened), which is exactly why the knots path fits the points directly.
+    fn typed(f: impl Fn(f64) -> f64, a: f64, b: f64, n: usize) -> Vec<Knot> {
+        (0..n)
+            .map(|i| {
+                let x = a + (b - a) * i as f64 / (n - 1) as f64;
+                Knot::new(x, f(x))
+            })
+            .collect()
     }
 
     #[test]
@@ -534,43 +271,6 @@ mod tests {
         let form = closed_form(&fit(vec![Knot::new(0.0, 3.0), Knot::new(2.0, 3.0)])).unwrap();
         assert_eq!(form.latex, "f(x) \\approx 3");
         assert!(form.max_error < 1e-6);
-    }
-
-    #[test]
-    fn recovers_a_higher_frequency_sine() {
-        // sin(2x) over one period [0, π]: the fixed frequency-1 basis can't express
-        // it, but the sinusoid sweep finds ω = 2.
-        let spline = spline_of(|x| (2.0 * x).sin(), |x| 2.0 * (2.0 * x).cos(), 0.0, PI, 13);
-        let form = closed_form(&spline).unwrap();
-        assert!(form.latex.contains("\\sin(2x)"), "{}", form.latex);
-        assert!(form.max_error < 0.03, "max error {}", form.max_error);
-    }
-
-    #[test]
-    fn recovers_a_shifted_cosine_wave() {
-        // 3·cos(1.5x): a wave the fixed basis misses on both amplitude and freq.
-        let spline = spline_of(
-            |x| 3.0 * (1.5 * x).cos(),
-            |x| -4.5 * (1.5 * x).sin(),
-            0.0,
-            4.0,
-            15,
-        );
-        let form = closed_form(&spline).unwrap();
-        assert!(form.latex.contains("\\cos(1.5x)"), "{}", form.latex);
-        assert!(form.latex.contains('3'), "{}", form.latex);
-    }
-
-    /// Points a user would *type* — coordinates only, no tangents — for the given
-    /// function over `[a, b]`. The PCHIP fit these produce is a poor wave (peaks
-    /// flattened), which is exactly why the knots path fits the points directly.
-    fn typed(f: impl Fn(f64) -> f64, a: f64, b: f64, n: usize) -> Vec<Knot> {
-        (0..n)
-            .map(|i| {
-                let x = a + (b - a) * i as f64 / (n - 1) as f64;
-                Knot::new(x, f(x))
-            })
-            .collect()
     }
 
     #[test]
@@ -642,15 +342,5 @@ mod tests {
             closed_form(&parabola()).unwrap().latex,
             closed_form(&parabola()).unwrap().latex
         );
-    }
-
-    #[test]
-    fn combinations_are_complete_and_ordered() {
-        assert_eq!(
-            combinations(&[0, 1, 2], 2),
-            vec![vec![0, 1], vec![0, 2], vec![1, 2]]
-        );
-        assert_eq!(combinations(&[5, 6], 1), vec![vec![5], vec![6]]);
-        assert!(combinations(&[0], 2).is_empty());
     }
 }
