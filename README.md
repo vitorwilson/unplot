@@ -11,9 +11,7 @@ valid function by construction, not a guess. And when your drawing really is a
 simple function, unplot _also_ proposes a compact closed form — `f(x) ≈ 3x²`,
 `cos x`, `1/x` — always shown with its error, never presented as exact.
 
-[![unplot demo — draw a curve, get the exact function](docs/demo.gif)](https://github.com/vitorwilson/unplot/blob/main/showcase.mp4)
-
-> ▶ [Watch the full demo](https://github.com/vitorwilson/unplot/blob/main/showcase.mp4) (54s, with sound).
+![unplot demo: drawing a curve, reading back the exact function, then differentiating and integrating it](docs/demo.gif)
 
 ## Features
 
