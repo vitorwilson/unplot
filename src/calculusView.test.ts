@@ -14,19 +14,28 @@ describe("calcTitle", () => {
 
 describe("calcNote", () => {
   it("is empty when nothing has been applied", () => {
-    expect(calcNote([])).toBe("");
+    expect(calcNote([], false)).toBe("");
+    expect(calcNote([], true)).toBe("");
   });
 
-  it("warns that a derivative has corners at the knots", () => {
-    expect(calcNote(["differentiate"])).toContain("corners");
+  it("warns that a numeric derivative has corners at the knots", () => {
+    expect(calcNote(["differentiate"], false)).toContain("corners");
   });
 
-  it("notes that an integral is smooth", () => {
-    expect(calcNote(["integrate"])).toContain("smooth");
+  it("notes that a numeric integral is smooth", () => {
+    expect(calcNote(["integrate"], false)).toContain("smooth");
   });
 
-  it("reflects the last operation in a chain", () => {
-    expect(calcNote(["integrate", "differentiate"])).toContain("corners");
-    expect(calcNote(["differentiate", "integrate"])).toContain("smooth");
+  it("reflects the last operation in a numeric chain", () => {
+    expect(calcNote(["integrate", "differentiate"], false)).toContain(
+      "corners",
+    );
+    expect(calcNote(["differentiate", "integrate"], false)).toContain("smooth");
+  });
+
+  it("calls an exact symbolic result a clean closed form, with no corners", () => {
+    const note = calcNote(["differentiate"], true);
+    expect(note).toContain("exact closed form");
+    expect(note).not.toContain("corners");
   });
 });

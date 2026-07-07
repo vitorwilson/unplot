@@ -141,6 +141,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   put and unchanged. The clean form has its own Copy button. When nothing is
   trustworthy the headline is simply absent. The same headline appears for a
   derivative or integral (e.g. d/dx of a parabola shows `f(x) ≈ 2x`).
+- Symbolic calculus on the recognized function (Phase 5 × Phase 7): when the
+  drawn curve is recognized as a clean closed form, `d/dx` and `∫` now operate on
+  that form exactly (`symbolic` module) instead of on the smoothed spline — so
+  differentiating a drawn x³ gives exactly 3x² (a smooth parabola) and
+  integrating gives x⁴/4, each shown as an exact closed form rather than a
+  piecewise result. Differentiation is total (polynomials, waves, `eˣ`,
+  `ln → 1/x`, and rationals by the quotient rule); integration covers
+  polynomials, waves, `eˣ`, and `ln`, and falls back to the numeric per-segment
+  calculus when nothing is recognized or a form has no closed antiderivative (a
+  rational integral). The panel labels an exact result honestly (no "corners"
+  note). The approximator now returns the recognized form as a structured
+  expression that also renders to LaTeX and Wolfram.
 
 ### Fixed
 
@@ -148,3 +160,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in `index.html` (instead of being injected by JS after first paint), and the
   canvas reserves its size in CSS, so a reload no longer shows an instant of
   unstyled layout or a jump from the browser-default canvas size.
+- Calculus on a recognized curve no longer misleads: differentiating a drawn x³
+  produced a lumpy pseudo-parabola (the numeric derivative of the shape-preserving
+  spline, whose estimated tangents are not the true 3x²), and integrating it
+  offered a bogus closed form (`… + cos x`) because the true integral x⁴/4 is
+  outside the fit basis. Both now come from exact symbolic calculus on the
+  recognized function (see Added).

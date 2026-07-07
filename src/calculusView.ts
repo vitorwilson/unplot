@@ -18,25 +18,29 @@ export function calcTitle(ops: CalcOp[]): string {
   return ["f", ...ops.map((op) => OP_SYMBOL[op])].join(" → ");
 }
 
-/** An honest note about the shown curve's smoothness, from the last operation: a
- * derivative is continuous but has corners at the knots (C⁰); an integral is
- * smooth (C²). Empty when nothing has been applied. Pure — unit-tested. */
-export function calcNote(ops: CalcOp[]): string {
-  const last = ops.at(-1);
-  if (last === "differentiate") {
+/** An honest note about the shown curve's smoothness. An `exact` result is the
+ * symbolic calculus of a recognized function — a clean closed form with no
+ * corners. Otherwise it is the numeric piecewise result: a derivative is
+ * continuous but has corners at the knots (C⁰), an integral is smooth (C²). Empty
+ * when nothing has been applied. Pure — unit-tested. */
+export function calcNote(ops: CalcOp[], exact: boolean): string {
+  if (ops.length === 0) {
+    return "";
+  }
+  if (exact) {
+    return " — an exact closed form";
+  }
+  if (ops.at(-1) === "differentiate") {
     return " — continuous, but with corners at the knots";
   }
-  if (last === "integrate") {
-    return " — continuous and smooth";
-  }
-  return "";
+  return " — continuous and smooth";
 }
 
 /** The panel summary for a derived curve: the chain breadcrumb, the core's own
  * segment/domain summary, and the smoothness note. */
 function derivedSummary(result: CalcCurve, ops: CalcOp[]): CurveLatex {
   return {
-    summary: `${calcTitle(ops)}: ${result.summary}${calcNote(ops)}`,
+    summary: `${calcTitle(ops)}: ${result.summary}${calcNote(ops, result.exact)}`,
     latex: result.latex,
     desmos: result.desmos,
     wolfram: result.wolfram,

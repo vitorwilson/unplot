@@ -106,7 +106,9 @@ export type CalcOp = "differentiate" | "integrate";
 /** A calculus result for display: the transformed curve's polyline (to draw), its
  * math in every copy format, and a closed-form approximation of the derivative /
  * integral itself when one is trustworthy. Not editable — the drawn knots stay
- * the source of truth and the operation stack is replayed on each request. */
+ * the source of truth and the operation stack is replayed on each request.
+ * `exact` is true when the result is the exact symbolic calculus of a recognized
+ * function (a clean, smooth closed form), false for the numeric piecewise one. */
 export interface CalcCurve {
   polyline: Point[];
   summary: string;
@@ -114,6 +116,7 @@ export interface CalcCurve {
   desmos: string;
   wolfram: string;
   approximation: Approximation | null;
+  exact: boolean;
 }
 
 interface RawCalcCurve {
@@ -123,6 +126,7 @@ interface RawCalcCurve {
   desmos: string;
   wolfram: string;
   approximation: Approximation | null;
+  exact: boolean;
 }
 
 /** Fit the drawn `knots`, apply each `op` in order through the core, and return

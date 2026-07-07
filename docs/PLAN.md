@@ -265,6 +265,16 @@ first:
 4. **Only then**, an opt-in "try harder" mode via heavier symbolic regression
    (e.g. a PySR sidecar) — possibly slow, clearly optional.
 
+- [x] **Symbolic calculus on the recognized form (Phase 5 × Phase 7).** When the
+  drawn curve *is* a recognized closed form, differentiate and integrate it
+  exactly (`symbolic` module) instead of the smoothed spline: d/dx of a drawn x³
+  is exactly 3x², and ∫ is x⁴/4 — where the numeric spline derivative was lumpy
+  and the numeric integral offered a wrong closed form (x⁴ is outside the fit
+  basis). The recognizer now returns the form as a structured `Expr`; calculus
+  falls back to the numeric per-segment result when nothing is recognized or a
+  form has no closed antiderivative here (a rational integral). Total
+  differentiation (incl. rationals via the quotient rule and `ln → 1/x`);
+  integration of polynomials, waves, `eˣ`, and `ln`.
 - [x] **Always compute and display fit error** (max and RMS over `[a, b]`). Only
   *offer* the pretty form when error is below a threshold; otherwise stay silent
   and keep the piecewise output. Never present an approximation as exact.
