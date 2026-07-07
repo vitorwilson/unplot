@@ -2,7 +2,7 @@
 name = "unplot-app"
 version = "0.1.0"
 description = "Tauri desktop shell for unplot."
-license = "MIT OR Apache-2.0"
+license = "MIT"
 edition = "2021"
 rust-version = "1.77.2"
 
