@@ -4,10 +4,10 @@
 //! basis would miss it.
 
 use super::{
-    candidate, errors, prettify, solve, Candidate, ABS_TOLERANCE, OMEGA_CAP, REFINE_STEPS,
+    candidate_of, prettify, solve, Candidate, ABS_TOLERANCE, OMEGA_CAP, REFINE_STEPS,
     SAMPLES_PER_PERIOD, SWEEP_STEPS,
 };
-use crate::coeffs::{fmt_num, DISPLAY_EPS};
+use crate::symbolic::{Expr, Term};
 use std::f64::consts::PI;
 
 /// The best single sinusoid `A·sin(ωx) + B·cos(ωx) + C` for a curve whose shape
@@ -49,17 +49,21 @@ pub(super) fn sinusoid_candidate(
         .iter()
         .map(|&c| prettify(c))
         .collect();
-    let approx = |x: f64| coeffs[0] + coeffs[1] * (omega * x).sin() + coeffs[2] * (omega * x).cos();
-    let (max_error, rms_error) = errors(&approx, err_x, err_y)?;
-    if max_error > tolerance {
-        return None;
-    }
-    let pairs = vec![
-        (coeffs[0], String::new()),
-        (coeffs[1], format!("\\sin({})", angle(omega))),
-        (coeffs[2], format!("\\cos({})", angle(omega))),
-    ];
-    candidate(&pairs, max_error, rms_error)
+    let wave = Expr::Sum(vec![
+        Term::Power {
+            coeff: coeffs[0],
+            power: 0,
+        },
+        Term::Sin {
+            coeff: coeffs[1],
+            omega,
+        },
+        Term::Cos {
+            coeff: coeffs[2],
+            omega,
+        },
+    ]);
+    candidate_of(wave, err_x, err_y, tolerance)
 }
 
 /// The frequency in `[lo, hi]` (over `steps` samples) with the smallest sinusoid
@@ -102,15 +106,6 @@ fn solve_sinusoid(fit_x: &[f64], fit_y: &[f64], omega: f64) -> Option<Vec<f64>> 
         1 => (omega * fit_x[i]).sin(),
         _ => (omega * fit_x[i]).cos(),
     })
-}
-
-/// The `ωx` argument of a trig term: `x` for ω = 1, else `2x`, `0.5x`, …
-fn angle(omega: f64) -> String {
-    if (omega - 1.0).abs() < DISPLAY_EPS {
-        "x".to_string()
-    } else {
-        format!("{}x", fmt_num(omega))
-    }
 }
 
 #[cfg(test)]

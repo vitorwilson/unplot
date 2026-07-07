@@ -2,13 +2,14 @@
 //! the dictionary `{1, x, x², x³, sin x, cos x, eˣ, ln x}` whose error clears the
 //! gate — nails "basically x²" or "basically eˣ".
 
-use super::{candidate, errors, solve, Candidate, MAX_TERMS, USABLE_CAP};
+use super::{candidate_of, solve, Candidate, MAX_TERMS, USABLE_CAP};
+use crate::symbolic::{Expr, Term};
 
-/// One dictionary entry: how to evaluate it and how it reads in LaTeX (the factor
-/// that a coefficient multiplies; empty for the constant term).
+/// One dictionary entry: how to evaluate it (for the least-squares fit and the
+/// usability check) and how a coefficient of it becomes a symbolic [`Term`].
 struct Basis {
     eval: fn(f64) -> f64,
-    latex: &'static str,
+    term: fn(f64) -> Term,
 }
 
 fn one(_: f64) -> f64 {
@@ -27,35 +28,35 @@ fn cube(x: f64) -> f64 {
 const DICTIONARY: &[Basis] = &[
     Basis {
         eval: one,
-        latex: "",
+        term: |coeff| Term::Power { coeff, power: 0 },
     },
     Basis {
         eval: linear,
-        latex: "x",
+        term: |coeff| Term::Power { coeff, power: 1 },
     },
     Basis {
         eval: square,
-        latex: "x^{2}",
+        term: |coeff| Term::Power { coeff, power: 2 },
     },
     Basis {
         eval: cube,
-        latex: "x^{3}",
+        term: |coeff| Term::Power { coeff, power: 3 },
     },
     Basis {
         eval: f64::sin,
-        latex: "\\sin x",
+        term: |coeff| Term::Sin { coeff, omega: 1.0 },
     },
     Basis {
         eval: f64::cos,
-        latex: "\\cos x",
+        term: |coeff| Term::Cos { coeff, omega: 1.0 },
     },
     Basis {
         eval: f64::exp,
-        latex: "e^{x}",
+        term: |coeff| Term::Exp { coeff },
     },
     Basis {
         eval: f64::ln,
-        latex: "\\ln x",
+        term: |coeff| Term::Ln { coeff },
     },
 ];
 
@@ -79,8 +80,7 @@ pub(super) fn basis_candidate(
     for size in 1..=max_terms {
         let best = combinations(&usable, size)
             .into_iter()
-            .filter_map(|subset| fit_basis_subset(&subset, fit_x, fit_y, err_x, err_y))
-            .filter(|form| form.max_error <= tolerance)
+            .filter_map(|subset| fit_basis_subset(&subset, fit_x, fit_y, err_x, err_y, tolerance))
             .min_by(|a, b| a.rms_error.total_cmp(&b.rms_error));
         if best.is_some() {
             return best; // fewer terms wins, so the first non-empty size is best
@@ -89,33 +89,26 @@ pub(super) fn basis_candidate(
     None
 }
 
-/// Fit `subset` of the dictionary to the samples, prettify the coefficients, and
-/// measure error on the denser grid. `None` if the solve fails or every term
-/// rounds away.
+/// Fit `subset` of the dictionary to the samples, assemble the recognized
+/// expression, and gate it on the denser grid. `None` if the solve fails, the
+/// error is too large, or every term rounds away.
 fn fit_basis_subset(
     subset: &[usize],
     fit_x: &[f64],
     fit_y: &[f64],
     err_x: &[f64],
     err_y: &[f64],
+    tolerance: f64,
 ) -> Option<Candidate> {
     let coeffs = solve(fit_x, fit_y, subset.len(), |i, j| {
         (DICTIONARY[subset[j]].eval)(fit_x[i])
     })?;
-    let approx = |x: f64| -> f64 {
-        subset
-            .iter()
-            .zip(&coeffs)
-            .map(|(&idx, &c)| c * (DICTIONARY[idx].eval)(x))
-            .sum()
-    };
-    let (max_error, rms_error) = errors(&approx, err_x, err_y)?;
-    let pairs: Vec<(f64, String)> = subset
+    let terms = subset
         .iter()
         .zip(&coeffs)
-        .map(|(&idx, &c)| (c, DICTIONARY[idx].latex.to_string()))
+        .map(|(&idx, &c)| (DICTIONARY[idx].term)(c))
         .collect();
-    candidate(&pairs, max_error, rms_error)
+    candidate_of(Expr::Sum(terms), err_x, err_y, tolerance)
 }
 
 /// Dictionary indices whose values are finite and bounded over the domain, so a

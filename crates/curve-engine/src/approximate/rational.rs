@@ -9,8 +9,9 @@
 //! is then gated on *true* error and rejected if `Q` vanishes inside the domain,
 //! which would be a spurious asymptote where the drawn curve was finite.
 
-use super::{errors, prettify, Candidate};
-use crate::coeffs::{join_terms, DISPLAY_EPS};
+use super::{candidate_of, prettify, Candidate};
+use crate::coeffs::DISPLAY_EPS;
+use crate::symbolic::Expr;
 use nalgebra::DMatrix;
 
 /// Rational shapes read as "pretty" only at low degree.
@@ -74,15 +75,13 @@ fn try_rational(
     if !has_nonconstant(&den) {
         return None; // degenerated to a polynomial — the basis strategy is prettier
     }
+    if num.iter().all(|c| c.abs() < DISPLAY_EPS) {
+        return None; // numerator rounded to zero — the curve is ≈ 0, not a rational
+    }
     if pole_inside(&den, err_x) {
         return None;
     }
-    let approx = |x: f64| horner(&num, x) / horner(&den, x);
-    let (max_error, rms_error) = errors(&approx, err_x, err_y)?;
-    if max_error > tolerance {
-        return None;
-    }
-    render(&num, &den, max_error, rms_error)
+    candidate_of(Expr::Rational { num, den }, err_x, err_y, tolerance)
 }
 
 /// Solve `P(x) − f(x)·Q(x) = 0` in the least-squares sense over the fit points:
@@ -161,44 +160,6 @@ fn pole_inside(den: &[f64], xs: &[f64]) -> bool {
         }
     }
     peak == 0.0 || trough < POLE_RATIO * peak
-}
-
-/// Render `\frac{P}{Q}`, or `None` if the numerator rounded away to zero (the
-/// curve is ≈ 0, not a rational shape).
-fn render(num: &[f64], den: &[f64], max_error: f64, rms_error: f64) -> Option<Candidate> {
-    let numerator = polynomial_latex(num);
-    if numerator == "0" {
-        return None;
-    }
-    let terms = count_terms(num) + count_terms(den);
-    Some(Candidate {
-        latex: format!(
-            "f(x) \\approx \\frac{{{numerator}}}{{{}}}",
-            polynomial_latex(den)
-        ),
-        max_error,
-        rms_error,
-        terms,
-    })
-}
-
-/// A polynomial `Σ cₖ xᵏ` as LaTeX, e.g. `1 + x^{2}`.
-fn polynomial_latex(coeffs: &[f64]) -> String {
-    join_terms(coeffs.iter().enumerate().map(|(k, &c)| (c, monomial(k))))
-}
-
-/// The `xᵏ` factor: empty for the constant, `x`, then `x^{k}`.
-fn monomial(power: usize) -> String {
-    match power {
-        0 => String::new(),
-        1 => "x".to_string(),
-        k => format!("x^{{{k}}}"),
-    }
-}
-
-/// How many coefficients survive rounding — a proxy for how busy the form reads.
-fn count_terms(coeffs: &[f64]) -> usize {
-    coeffs.iter().filter(|c| c.abs() >= DISPLAY_EPS).count()
 }
 
 /// Evaluate `Σ cₖ xᵏ` by Horner's method.

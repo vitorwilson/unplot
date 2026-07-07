@@ -15,9 +15,9 @@
 //! is `None` and the caller keeps the exact output. Reports honest max/RMS error.
 //! FOSS-only, pure-Rust (nalgebra); no CAS. Deterministic.
 
-use crate::coeffs::{join_terms, DISPLAY_EPS};
 use crate::knot::Knot;
 use crate::spline::Spline;
+use crate::symbolic::Expr;
 use nalgebra::{DMatrix, DVector};
 
 mod basis;
@@ -56,11 +56,16 @@ pub struct ClosedForm {
     pub max_error: f64,
     /// Root-mean-square error over the domain.
     pub rms_error: f64,
+    /// The recognized form itself, so calculus on the drawn curve can be done on
+    /// it symbolically (exactly) rather than on the smoothed spline.
+    pub expr: Expr,
 }
 
-/// A fitted candidate before it competes with the others: its rendered form, its
-/// error, and how many terms it reads as (fewer is prettier).
+/// A fitted candidate before it competes with the others: the recognized
+/// expression, its rendered form, its error, and how many terms it reads as
+/// (fewer is prettier).
 struct Candidate {
+    expr: Expr,
     latex: String,
     max_error: f64,
     rms_error: f64,
@@ -142,6 +147,7 @@ fn fit_closed_form(
         latex: best.latex,
         max_error: best.max_error,
         rms_error: best.rms_error,
+        expr: best.expr,
     })
 }
 
@@ -161,19 +167,25 @@ fn solve(
     Some(solved.iter().copied().collect())
 }
 
-/// Build a candidate from `(coefficient, factor)` term pairs — its rendered LaTeX
-/// and how many terms survive. `None` when every term rounds away (`"0"`).
-fn candidate(pairs: &[(f64, String)], max_error: f64, rms_error: f64) -> Option<Candidate> {
-    let terms = pairs.iter().filter(|(c, _)| c.abs() >= DISPLAY_EPS).count();
-    let expression = join_terms(pairs.iter().cloned());
-    if expression == "0" {
+/// Build a candidate from a recognized `expr`: measure its honest error on the
+/// dense grid, gate it, and render it. `None` when the error is non-finite,
+/// exceeds `tolerance`, or the form rounds away to `"0"`. Every strategy funnels
+/// through here so error, gating, term-counting, and rendering live in one place.
+fn candidate_of(expr: Expr, err_x: &[f64], err_y: &[f64], tolerance: f64) -> Option<Candidate> {
+    let (max_error, rms_error) = errors(&|x| expr.eval(x), err_x, err_y)?;
+    if max_error > tolerance {
+        return None;
+    }
+    let body = expr.to_latex();
+    if body == "0" {
         return None;
     }
     Some(Candidate {
-        latex: format!("f(x) \\approx {expression}"),
+        latex: format!("f(x) \\approx {body}"),
         max_error,
         rms_error,
-        terms,
+        terms: expr.term_count(),
+        expr,
     })
 }
 

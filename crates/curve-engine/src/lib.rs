@@ -22,6 +22,7 @@ mod knot;
 pub mod latex;
 mod resample;
 mod spline;
+pub mod symbolic;
 mod validate;
 
 pub use curve::Curve;
