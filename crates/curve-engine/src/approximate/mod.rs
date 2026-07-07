@@ -1,17 +1,19 @@
 //! The "prettier function" (Phase 7): when the drawn curve is *basically* a
 //! simple function, offer a compact closed form beside the exact piecewise
-//! output — never instead of it. Two strategies compete, both error-gated:
+//! output — never instead of it. Three strategies compete, all error-gated:
 //!
 //! 1. a sparse least-squares fit against a fixed basis dictionary (`{1, x, x²,
 //!    x³, sin x, cos x, eˣ, ln x}`) — nails "basically x²" or "basically eˣ"
 //!    ([`basis`]);
 //! 2. a free-frequency sinusoid `A·sin(ωx) + B·cos(ωx) + C`, found by sweeping ω
 //!    (a periodogram) — catches a drawn wave of any frequency, which the fixed
-//!    frequency-1 trig basis misses ([`sinusoid`]).
+//!    frequency-1 trig basis misses ([`sinusoid`]);
+//! 3. a low-degree rational `P(x)/Q(x)` — catches a drawn hyperbola or resonance
+//!    peak that no polynomial or wave can express ([`rational`]).
 //!
-//! The simplest trustworthy form wins; if neither clears the error gate the
-//! result is `None` and the caller keeps the exact output. Reports honest max/RMS
-//! error. FOSS-only, pure-Rust (nalgebra); no CAS. Deterministic.
+//! The simplest trustworthy form wins; if none clears the error gate the result
+//! is `None` and the caller keeps the exact output. Reports honest max/RMS error.
+//! FOSS-only, pure-Rust (nalgebra); no CAS. Deterministic.
 
 use crate::coeffs::{join_terms, DISPLAY_EPS};
 use crate::knot::Knot;
@@ -19,6 +21,7 @@ use crate::spline::Spline;
 use nalgebra::{DMatrix, DVector};
 
 mod basis;
+mod rational;
 mod sinusoid;
 
 /// Points used to fit the coefficients.
@@ -126,6 +129,7 @@ fn fit_closed_form(
     [
         basis::basis_candidate(fit_x, fit_y, err_x, err_y, tolerance),
         sinusoid::sinusoid_candidate(domain, fit_x, fit_y, err_x, err_y, tolerance),
+        rational::rational_candidate(fit_x, fit_y, err_x, err_y, tolerance),
     ]
     .into_iter()
     .flatten()

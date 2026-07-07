@@ -255,7 +255,13 @@ first:
    few terms*. **✓ Shipped** — a free-frequency sinusoid fit (a periodogram
    sweep of ω), the practical realization for a drawn wave of arbitrary frequency
    that fixed harmonics would miss.
-3. **Padé / rational** approximation for pole-shaped curves.
+3. **Padé / rational** approximation for pole-shaped curves. **✓ Shipped** — a
+   low-degree `P(x)/Q(x)` fit (`approximate::rational`), linearized as `f·Q = P`
+   and solved as a homogeneous least squares so a pole may sit anywhere (`1/x`,
+   `1/(x + 2)`, `1/(1 + x²)`). Error-gated like the others, and rejected outright
+   if `Q` vanishes inside the domain (a spurious asymptote where the curve was
+   finite). Catches a drawn hyperbola or resonance peak the polynomial, `eˣ`/`ln`,
+   and sinusoid strategies all miss.
 4. **Only then**, an opt-in "try harder" mode via heavier symbolic regression
    (e.g. a PySR sidecar) — possibly slow, clearly optional.
 

@@ -405,6 +405,27 @@ mod tests {
     }
 
     #[test]
+    fn curve_latex_recognizes_a_typed_hyperbola() {
+        // Phase 7 rational strategy: y = 1/x is a pole-shaped curve no polynomial or
+        // wave can express, so the closed form should be the fraction 1/x.
+        let knots = (0..8)
+            .map(|i| {
+                let x = 0.5 + i as f64 * 0.5;
+                dto(x, 1.0 / x, None)
+            })
+            .collect();
+        let approx = curve_latex(knots)
+            .unwrap()
+            .approximation
+            .expect("a typed hyperbola should get a closed form");
+        assert_eq!(
+            approx.latex, "f(x) \\approx \\frac{1}{x}",
+            "{}",
+            approx.latex
+        );
+    }
+
+    #[test]
     fn apply_calculus_differentiates_a_line_to_a_constant() {
         // f(x) = 2x  ⇒  f'(x) = 2 everywhere; the derivative polyline is flat at 2.
         let result = apply_calculus(
