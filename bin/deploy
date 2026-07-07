@@ -28,8 +28,10 @@ fail() {
 [[ "$pkg_version" == "$version" && "$app_version" == "$version" ]] ||
   fail "version mismatch: tauri.conf=$version package.json=$pkg_version cargo=$app_version"
 
-# A dirty tree means the tag would not capture what is about to ship.
-[[ -z "$(git status --porcelain)" ]] || fail "working tree not clean — commit or stash first"
+# Uncommitted *tracked* changes would not be captured by the tag. Untracked files
+# (local scratch, uncommitted notes) don't affect what ships, so they don't block.
+git diff --quiet && git diff --cached --quiet ||
+  fail "working tree has uncommitted changes — commit or stash first"
 
 # The release body comes from this section; refuse to ship without it.
 [[ -n "$(bin/changelog "$version")" ]] ||
