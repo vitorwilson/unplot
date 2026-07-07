@@ -12,6 +12,7 @@
 //! back rather than inventing a wrong answer.
 
 use crate::coeffs::{fmt_num, join_terms, DISPLAY_EPS};
+use crate::poly;
 
 /// Angular frequencies this close to 1 render as `sin x` rather than `sin(1x)`.
 const UNIT_OMEGA_EPS: f64 = 1e-6;
@@ -47,7 +48,7 @@ impl Expr {
     pub fn eval(&self, x: f64) -> f64 {
         match self {
             Expr::Sum(terms) => terms.iter().map(|t| t.eval(x)).sum(),
-            Expr::Rational { num, den } => horner(num, x) / horner(den, x),
+            Expr::Rational { num, den } => poly::horner(num, x) / poly::horner(den, x),
         }
     }
 
@@ -190,12 +191,12 @@ fn diff_term(term: &Term) -> Vec<Term> {
 
 /// The quotient rule `(P/Q)' = (P'Q − PQ')/Q²`, kept as a rational (unreduced).
 fn diff_rational(num: &[f64], den: &[f64]) -> Expr {
-    let dnum = poly_derivative(num);
-    let dden = poly_derivative(den);
-    let numerator = poly_sub(&poly_mul(&dnum, den), &poly_mul(num, &dden));
+    let dnum = poly::derivative(num);
+    let dden = poly::derivative(den);
+    let numerator = poly::sub(&poly::mul(&dnum, den), &poly::mul(num, &dden));
     Expr::Rational {
         num: numerator,
-        den: poly_mul(den, den),
+        den: poly::mul(den, den),
     }
 }
 
@@ -351,40 +352,6 @@ fn trig_wolfram(name: &str, omega: f64) -> String {
     } else {
         format!("{name}[{}x]", fmt_num(omega))
     }
-}
-
-// --- Polynomial arithmetic (for the quotient rule) ------------------------------
-
-fn horner(coeffs: &[f64], x: f64) -> f64 {
-    coeffs.iter().rev().fold(0.0, |acc, &c| acc * x + c)
-}
-
-fn poly_derivative(a: &[f64]) -> Vec<f64> {
-    a.iter()
-        .enumerate()
-        .skip(1)
-        .map(|(k, &c)| k as f64 * c)
-        .collect()
-}
-
-fn poly_mul(a: &[f64], b: &[f64]) -> Vec<f64> {
-    if a.is_empty() || b.is_empty() {
-        return vec![];
-    }
-    let mut out = vec![0.0; a.len() + b.len() - 1];
-    for (i, &ai) in a.iter().enumerate() {
-        for (j, &bj) in b.iter().enumerate() {
-            out[i + j] += ai * bj;
-        }
-    }
-    out
-}
-
-fn poly_sub(a: &[f64], b: &[f64]) -> Vec<f64> {
-    let n = a.len().max(b.len());
-    (0..n)
-        .map(|i| a.get(i).copied().unwrap_or(0.0) - b.get(i).copied().unwrap_or(0.0))
-        .collect()
 }
 
 fn nonzero(coeffs: &[f64]) -> usize {

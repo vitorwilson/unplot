@@ -11,6 +11,7 @@
 
 use super::{candidate_of, prettify, Candidate};
 use crate::coeffs::DISPLAY_EPS;
+use crate::poly::horner;
 use crate::symbolic::Expr;
 use nalgebra::DMatrix;
 
@@ -160,11 +161,6 @@ fn pole_inside(den: &[f64], xs: &[f64]) -> bool {
         }
     }
     peak == 0.0 || trough < POLE_RATIO * peak
-}
-
-/// Evaluate `Σ cₖ xᵏ` by Horner's method.
-fn horner(coeffs: &[f64], x: f64) -> f64 {
-    coeffs.iter().rev().fold(0.0, |acc, &c| acc * x + c)
 }
 
 #[cfg(test)]

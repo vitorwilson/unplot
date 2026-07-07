@@ -114,6 +114,9 @@ pub fn closed_form(spline: &Spline) -> Option<ClosedForm> {
 /// assert!(approximate::closed_form_of_knots(&knots).unwrap().latex.contains("\\cos"));
 /// ```
 pub fn closed_form_of_knots(knots: &[Knot]) -> Option<ClosedForm> {
+    if knots.len() < 2 {
+        return None; // nothing to fit — a form needs at least a domain
+    }
     let xs: Vec<f64> = knots.iter().map(|k| k.x).collect();
     let ys: Vec<f64> = knots.iter().map(|k| k.y).collect();
     let domain = (xs[0], xs[xs.len() - 1]);
@@ -304,6 +307,13 @@ mod tests {
         let form = closed_form_of_knots(&typed(|x| 2.0 * x.cos() + 1.0, 0.0, 2.0 * PI, 9)).unwrap();
         assert!(form.latex.contains("2\\cos"), "{}", form.latex);
         assert!(form.latex.contains('1'), "{}", form.latex); // the +1 offset
+    }
+
+    #[test]
+    fn degenerate_knot_sets_are_silent_not_panics() {
+        // A public entry point must not panic on too-few knots (no domain to fit).
+        assert!(closed_form_of_knots(&[]).is_none());
+        assert!(closed_form_of_knots(&[Knot::new(0.0, 1.0)]).is_none());
     }
 
     #[test]
