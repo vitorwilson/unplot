@@ -158,6 +158,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and documentation) and its issue tracker (report bugs). The links open in the
   system browser via the Tauri opener plugin, scoped in the app's capabilities to
   just those two URLs, rather than navigating the app's own webview.
+- Release pipeline (Phase 8): a tag-triggered `Release` workflow builds the signed
+  Tauri bundles on each platform via `tauri-action` — Windows `.msi`/`.exe`, a
+  universal macOS `.dmg`/`.app`, and Linux `.deb`/`.AppImage` — and attaches them
+  to a draft GitHub Release whose body is the tag's `CHANGELOG.md` section.
+  `bin/deploy` is the one entrypoint: it validates that the three manifests'
+  versions agree, the tree is clean, and the changelog section exists, then tags
+  `vX.Y.Z` and pushes. `bin/changelog` extracts a version's notes (shared by the
+  script and the workflow). Signing/notarization activate when the corresponding
+  GitHub Actions secrets are set; the process is documented in `docs/RELEASE.md`.
 
 ### Fixed
 

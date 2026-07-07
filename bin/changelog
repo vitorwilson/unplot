@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Print the CHANGELOG.md section for a given version, in Keep a Changelog format.
+# Used both by bin/deploy (to check the section exists) and by the release
+# workflow (as the GitHub Release body), so the extraction rule lives in one place.
+#
+# Usage: bin/changelog 0.1.0
+set -euo pipefail
+
+version="${1:?usage: bin/changelog <version>}"
+changelog="$(cd "$(dirname "$0")/.." && pwd)/CHANGELOG.md"
+
+# Lines between the "## [<version>]" heading and the next "## [" heading, with
+# leading blank lines trimmed. `index(...) == 1` matches the heading literally
+# (not as a regex), so "1.0" never matches "## [10.0]".
+awk -v ver="$version" '
+  index($0, "## [" ver "]") == 1 { grabbing = 1; next }
+  grabbing && index($0, "## [") == 1 { exit }
+  grabbing { print }
+' "$changelog" | sed '/./,$!d'

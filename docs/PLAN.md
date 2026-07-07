@@ -297,15 +297,24 @@ gracefully to the exact piecewise output with no false promises.
 
 **Goal:** shippable, signed installers on a version tag.
 
-- [ ] Tauri bundles: Windows `.msi`/`.exe`, macOS `.dmg`/`.app` (notarized), Linux
-  `.deb`/`.AppImage`. Build once per architecture; reuse the artifact.
-- [ ] `bin/deploy` builds signed bundles and attaches them to the GitHub Release;
-  the release body is the current `CHANGELOG.md` section. Tag-triggered, never
-  by hand.
-- [ ] Signing certs / notarization creds via gitignored config; never committed.
+- [x] Tauri bundles: Windows `.msi`/`.exe`, macOS `.dmg`/`.app` (universal), Linux
+  `.deb`/`.AppImage`. **✓ Shipped** — `tauri-action` in the tag-triggered
+  `Release` workflow builds all three, reusing one artifact per architecture
+  (macOS is a universal binary; `bundle.targets = "all"`).
+- [x] `bin/deploy` cuts the release and the pipeline attaches bundles to the
+  GitHub Release; the release body is the tag's `CHANGELOG.md` section (extracted
+  by `bin/changelog`, shared with the workflow). **✓ Shipped** — `bin/deploy`
+  validates (versions in sync, clean tree, changelog section present) then tags
+  and pushes; the workflow builds and publishes a *draft* release for sign-off.
+  Never by hand.
+- [x] Signing certs / notarization creds via gitignored config; never committed.
+  **✓ Shipped** — GitHub Actions secrets mirror `config/deploy.env.example`; the
+  workflow passes them to `tauri-action` (see `docs/RELEASE.md`).
 
 **Done when:** pushing `vX.Y.Z` produces signed, installable builds for all three
-platforms.
+platforms. *The pipeline is in place and produces installable bundles; code
+signing and macOS notarization activate once the signing secrets are configured
+in the repo (docs/RELEASE.md).*
 
 ---
 

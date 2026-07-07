@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Cut a release. Validates the repo, then tags vX.Y.Z and pushes it — the tag is
+# what triggers the release workflow, which builds, signs, packages, and
+# publishes. Releases are never built or published by hand (docs/RELEASE.md).
+#
+# Prep before running (see docs/RELEASE.md): bump the version in the three
+# manifests, promote CHANGELOG.md's [Unreleased] section to [X.Y.Z], and commit.
+#
+# Usage: bin/deploy [-y]      (-y skips the confirmation prompt)
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+assume_yes=false
+[[ "${1:-}" == "-y" ]] && assume_yes=true
+
+# tauri.conf.json's version is the bundle version — the source of truth here.
+version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+pkg_version="$(node -p "require('./package.json').version")"
+app_version="$(sed -nE 's/^version *= *"([^"]+)".*/\1/p' src-tauri/Cargo.toml | head -1)"
+tag="v$version"
+
+fail() {
+  echo "deploy: $1" >&2
+  exit 1
+}
+
+# The three manifests must agree, or the bundle version would not match the tag.
+[[ "$pkg_version" == "$version" && "$app_version" == "$version" ]] ||
+  fail "version mismatch: tauri.conf=$version package.json=$pkg_version cargo=$app_version"
+
+# A dirty tree means the tag would not capture what is about to ship.
+[[ -z "$(git status --porcelain)" ]] || fail "working tree not clean — commit or stash first"
+
+# The release body comes from this section; refuse to ship without it.
+[[ -n "$(bin/changelog "$version")" ]] ||
+  fail "CHANGELOG.md has no '## [$version]' section — promote [Unreleased] first"
+
+# Never move a published tag.
+git rev-parse -q --verify "refs/tags/$tag" >/dev/null &&
+  fail "tag $tag already exists"
+
+echo "Release $tag — tags and pushes, triggering the signed-build pipeline."
+if ! $assume_yes; then
+  read -r -p "Proceed? [y/N] " reply
+  [[ "$reply" == [yY] ]] || fail "aborted"
+fi
+
+git tag -a "$tag" -m "unplot $tag"
+git push origin "$tag"
+echo "Pushed $tag. Watch the Release workflow, then publish the draft release once bundles are attached."
