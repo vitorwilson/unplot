@@ -298,7 +298,7 @@ gracefully to the exact piecewise output with no false promises.
 **Goal:** shippable, signed installers on a version tag.
 
 - [x] Tauri bundles: Windows `.msi`/`.exe`, macOS `.dmg`/`.app` (universal), Linux
-  `.deb`/`.AppImage`. **✓ Shipped** — `tauri-action` in the tag-triggered
+  `.AppImage`/`.deb`/`.rpm`. **✓ Shipped** — `tauri-action` in the tag-triggered
   `Release` workflow builds all three, reusing one artifact per architecture
   (macOS is a universal binary; `bundle.targets = "all"`).
 - [x] `bin/deploy` cuts the release and the pipeline attaches bundles to the
@@ -338,10 +338,15 @@ in the repo (docs/RELEASE.md).*
 
 ---
 
-## Suggested milestones
+## Milestones
 
-- **v0.1 — "It draws and prints."** Phases 0–4: draw a valid function, edit it,
-  get exact LaTeX. This alone is a usable, honest product.
-- **v0.2 — "It does calculus and saves."** Phases 5–6.
-- **v0.3 — "It guesses pretty."** Phase 7, gated and optional.
-- **v1.0 — "It ships."** Phase 8 hardened; docs complete.
+The original plan sequenced this over four releases (draw → calculus → the
+prettier function → ship). In practice it all landed together:
+
+- **v0.1.0 — shipped.** Phases 0–8: draw a valid function and edit it, exact
+  LaTeX, analytic + symbolic calculus, save/open, the error-gated prettier
+  function (polynomial / wave / rational) with the symbolic layer, and the
+  tag-triggered signed-build release pipeline.
+- **Next** — polish, code signing once certificates are in place, an opt-in
+  "try harder" symbolic-regression mode (Phase 7, item 4), and whatever users
+  find first. "Done" is just v0.1.
