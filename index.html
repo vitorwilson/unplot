@@ -82,7 +82,12 @@
         </button>
       </dialog>
       <section id="points-panel" class="points-panel">
-        <button id="points-toggle" class="points-toggle" type="button"></button>
+        <button
+          id="points-toggle"
+          class="points-toggle"
+          type="button"
+          aria-expanded="false"
+        ></button>
         <div id="points-body" class="points-body" hidden>
           <textarea
             id="points-input"
@@ -116,6 +121,7 @@
             id="latex-summary"
             class="latex-summary"
             type="button"
+            aria-expanded="false"
           ></button>
           <select
             id="latex-format"

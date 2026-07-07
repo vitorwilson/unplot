@@ -5,14 +5,14 @@
 
 export type Theme = "light" | "dark";
 
-/** Canvas colors for one theme. Handle colors are for Phase 3 edit handles. */
+/** Canvas colors for one theme. `handle` draws the draggable knot dots and
+ * tangent handles. */
 export interface CanvasColors {
   grid: string;
   axis: string;
   label: string;
   curve: string;
   handle: string;
-  handleActive: string;
 }
 
 const LIGHT: CanvasColors = {
@@ -21,7 +21,6 @@ const LIGHT: CanvasColors = {
   label: "#5a5a5a",
   curve: "#1565c0",
   handle: "#1565c0",
-  handleActive: "#0d47a1",
 };
 
 const DARK: CanvasColors = {
@@ -30,7 +29,6 @@ const DARK: CanvasColors = {
   label: "#9aa0a6",
   curve: "#4da3ff",
   handle: "#4da3ff",
-  handleActive: "#a6d2ff",
 };
 
 const STORAGE_KEY = "unplot-theme";

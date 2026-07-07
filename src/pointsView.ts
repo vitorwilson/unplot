@@ -43,6 +43,7 @@ export function installPointsView(
   const setExpanded = (next: boolean): void => {
     expanded = next;
     el.toggleButton.textContent = pointsToggleLabel(expanded);
+    el.toggleButton.setAttribute("aria-expanded", String(expanded));
     el.body.hidden = !expanded;
   };
 

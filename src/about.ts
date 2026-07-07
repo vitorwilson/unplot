@@ -51,7 +51,9 @@ export function installAboutView(el: AboutElements, deps: AboutDeps): void {
   for (const link of el.links) {
     link.addEventListener("click", (event) => {
       event.preventDefault();
-      void deps.openExternal(link.href);
+      // Swallow opener failures (e.g. a URL outside the capability allowlist) so
+      // they don't surface as an unhandled rejection.
+      void deps.openExternal(link.href).catch(() => {});
     });
   }
 }

@@ -79,6 +79,7 @@ export function installLatexView(el: LatexElements): LatexView {
       return;
     }
     el.summaryButton.textContent = summaryLabel(current.summary, expanded);
+    el.summaryButton.setAttribute("aria-expanded", String(expanded));
     el.copyButton.textContent = copyLabel(selectedFormat());
     el.body.hidden = !expanded;
     if (expanded) {
