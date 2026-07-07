@@ -109,16 +109,36 @@ fn curve_latex(knots: Vec<KnotDto>) -> Result<CurveLatex, String> {
         latex: curve_engine::latex::piecewise(&spline),
         desmos: curve_engine::export::desmos(&spline),
         wolfram: curve_engine::export::wolfram(&spline),
-        approximation: approximate_curve(&spline),
+        // Fit the user's exact knots, not the smoothed spline: PCHIP flattens a
+        // sparse wave's peaks, so sampling the spline misses a cosine the typed
+        // points plainly trace (see approximate::closed_form_of_knots).
+        approximation: normalize(
+            curve_engine::approximate::closed_form_of_knots(curve.knots()),
+            y_span(&spline),
+        ),
     })
 }
 
 /// The closed-form "prettier function" for a spline (Phase 7), with error as a
-/// fraction of the y-range, or `None` when no trustworthy form exists. Shared by
-/// the drawn curve and its derivative/integral.
+/// fraction of the y-range, or `None` when no trustworthy form exists. Used for a
+/// derivative/integral, whose spline is itself the exact (piecewise-polynomial)
+/// result — so sampling it, rather than any knots, is the right target.
 fn approximate_curve(spline: &curve_engine::Spline) -> Option<Approximation> {
-    curve_engine::approximate::closed_form(spline).map(|form| {
-        let range = y_span(spline).max(1e-6);
+    normalize(
+        curve_engine::approximate::closed_form(spline),
+        y_span(spline),
+    )
+}
+
+/// Express a closed form's error as a fraction of the curve's y-range, so the UI
+/// can show "max 0.4%". A near-flat curve floors the range to avoid dividing by
+/// zero.
+fn normalize(
+    form: Option<curve_engine::approximate::ClosedForm>,
+    range: f64,
+) -> Option<Approximation> {
+    form.map(|form| {
+        let range = range.max(1e-6);
         Approximation {
             latex: form.latex,
             max_error: form.max_error / range,
@@ -363,6 +383,25 @@ mod tests {
             "relative error {}",
             approx.max_error
         );
+    }
+
+    #[test]
+    fn curve_latex_recognizes_typed_cosine_points() {
+        // Regression: five exact points over one period of cos(x), typed with no
+        // tangents. The smoothed spline flattens the peaks, so the closed form must
+        // be fitted from the knots for the app to recognize the wave.
+        let quarter = std::f64::consts::PI / 2.0;
+        let knots = (0..5)
+            .map(|i| {
+                let x = i as f64 * quarter;
+                dto(x, x.cos(), None)
+            })
+            .collect();
+        let approx = curve_latex(knots)
+            .unwrap()
+            .approximation
+            .expect("typed cosine points should get a closed form");
+        assert!(approx.latex.contains("\\cos"), "{}", approx.latex);
     }
 
     #[test]

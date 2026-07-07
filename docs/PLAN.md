@@ -244,6 +244,13 @@ first:
    log) with sparsity — cheap, deterministic; nails "this is basically x²" or
    "…basically a sine." **✓ Shipped** — the `approximate` module (error-gated,
    pure-Rust).
+   - **Follow-up (shipped):** the drawn curve's fit targets the user's *exact
+     knots*, not the smoothed spline. PCHIP zeroes the slope at a sparse wave's
+     peaks and runs nearly straight to the next knot, so sampling the spline
+     missed a cosine that typed points plainly traced (5 exact `cos x` points
+     deviated ~21%). An overdetermination guard (more points than terms) keeps
+     the knot fit from "recognizing" noise. The derivative/integral path still
+     samples its spline, which is the exact piecewise-polynomial result.
 2. **Chebyshev / Fourier series** → readable closed form *when it collapses to a
    few terms*. **✓ Shipped** — a free-frequency sinusoid fit (a periodogram
    sweep of ω), the practical realization for a drawn wave of arbitrary frequency

@@ -13,6 +13,7 @@
 //! error. FOSS-only, pure-Rust (nalgebra); no CAS. Deterministic.
 
 use crate::coeffs::{fmt_num, join_terms, DISPLAY_EPS};
+use crate::knot::Knot;
 use crate::spline::Spline;
 use nalgebra::{DMatrix, DVector};
 use std::f64::consts::PI;
@@ -80,11 +81,48 @@ struct Candidate {
 pub fn closed_form(spline: &Spline) -> Option<ClosedForm> {
     let (fit_x, fit_y) = sample(spline, FIT_SAMPLES);
     let (err_x, err_y) = sample(spline, ERROR_SAMPLES);
-    let tolerance = REL_TOLERANCE * span(&err_y) + ABS_TOLERANCE;
+    fit_closed_form(&fit_x, &fit_y, &err_x, &err_y, spline.domain())
+}
 
+/// Recover a closed form from the user's exact knots (typed points or dragged
+/// handles) rather than the smoothed spline. This is the right target for the
+/// *drawn* curve: the shape-preserving PCHIP fit zeroes the slope at a sparse
+/// wave's peaks and runs nearly straight to the next knot, so fitting the spline
+/// would miss a cosine the points plainly trace (commit 25b7ae3 follow-up). The
+/// knots are the ground truth, so fit and error are both measured at them.
+///
+/// # Example
+/// ```
+/// use curve_engine::{approximate, Knot};
+/// use std::f64::consts::PI;
+/// // Five exact points over one period of cos(x) — a natural thing to type.
+/// let knots: Vec<Knot> = [0.0, PI / 2.0, PI, 3.0 * PI / 2.0, 2.0 * PI]
+///     .iter()
+///     .map(|&x| Knot::new(x, x.cos()))
+///     .collect();
+/// assert!(approximate::closed_form_of_knots(&knots).unwrap().latex.contains("\\cos"));
+/// ```
+pub fn closed_form_of_knots(knots: &[Knot]) -> Option<ClosedForm> {
+    let xs: Vec<f64> = knots.iter().map(|k| k.x).collect();
+    let ys: Vec<f64> = knots.iter().map(|k| k.y).collect();
+    let domain = (xs[0], xs[xs.len() - 1]);
+    fit_closed_form(&xs, &ys, &xs, &ys, domain)
+}
+
+/// The best trustworthy closed form for samples fitted over `domain`: the two
+/// strategies compete and the simplest that clears the error gate (fewest terms,
+/// then lowest RMS) wins, or `None`.
+fn fit_closed_form(
+    fit_x: &[f64],
+    fit_y: &[f64],
+    err_x: &[f64],
+    err_y: &[f64],
+    domain: (f64, f64),
+) -> Option<ClosedForm> {
+    let tolerance = REL_TOLERANCE * span(err_y) + ABS_TOLERANCE;
     [
-        basis_candidate(&fit_x, &fit_y, &err_x, &err_y, tolerance),
-        sinusoid_candidate(spline, &fit_x, &fit_y, &err_x, &err_y, tolerance),
+        basis_candidate(fit_x, fit_y, err_x, err_y, tolerance),
+        sinusoid_candidate(domain, fit_x, fit_y, err_x, err_y, tolerance),
     ]
     .into_iter()
     .flatten()
@@ -166,7 +204,15 @@ fn basis_candidate(
     tolerance: f64,
 ) -> Option<Candidate> {
     let usable = usable_basis(fit_x);
-    for size in 1..=MAX_TERMS.min(usable.len()) {
+    // A clean fit is only *evidence* of a shape when it has more points than free
+    // terms: an n-point set passes exactly through any n-term basis, so allowing
+    // size == n would "recognize" noise and, on ties, pick an ugly exact fit (a
+    // 2-point line read as `1 + 0.5x³`). Require at least one residual degree of
+    // freedom — which only bites the knots path, as the spline path samples 120.
+    let max_terms = MAX_TERMS
+        .min(usable.len())
+        .min(fit_x.len().saturating_sub(1));
+    for size in 1..=max_terms {
         let best = combinations(&usable, size)
             .into_iter()
             .filter_map(|subset| fit_basis_subset(&subset, fit_x, fit_y, err_x, err_y))
@@ -227,21 +273,22 @@ fn usable_basis(fit_x: &[f64]) -> Vec<usize> {
 /// is a wave of arbitrary frequency, or `None`. ω is found by sweeping (a
 /// periodogram) then refining and snapping toward a round value.
 fn sinusoid_candidate(
-    spline: &Spline,
+    domain: (f64, f64),
     fit_x: &[f64],
     fit_y: &[f64],
     err_x: &[f64],
     err_y: &[f64],
     tolerance: f64,
 ) -> Option<Candidate> {
-    let (a, b) = spline.domain();
+    let (a, b) = domain;
     let length = b - a;
     if length <= ABS_TOLERANCE {
         return None;
     }
-    // From "half a wave spans the domain" up to what the sampling can resolve.
+    // From "half a wave spans the domain" up to what the sampling can resolve —
+    // capped by the actual point count so a claimed frequency is not aliased.
     let omega_min = PI / length;
-    let omega_max = (PI * FIT_SAMPLES as f64 / (SAMPLES_PER_PERIOD * length)).min(OMEGA_CAP);
+    let omega_max = (PI * fit_x.len() as f64 / (SAMPLES_PER_PERIOD * length)).min(OMEGA_CAP);
     if omega_max <= omega_min {
         return None;
     }
@@ -512,6 +559,58 @@ mod tests {
         let form = closed_form(&spline).unwrap();
         assert!(form.latex.contains("\\cos(1.5x)"), "{}", form.latex);
         assert!(form.latex.contains('3'), "{}", form.latex);
+    }
+
+    /// Points a user would *type* — coordinates only, no tangents — for the given
+    /// function over `[a, b]`. The PCHIP fit these produce is a poor wave (peaks
+    /// flattened), which is exactly why the knots path fits the points directly.
+    fn typed(f: impl Fn(f64) -> f64, a: f64, b: f64, n: usize) -> Vec<Knot> {
+        (0..n)
+            .map(|i| {
+                let x = a + (b - a) * i as f64 / (n - 1) as f64;
+                Knot::new(x, f(x))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn recovers_a_cosine_from_five_typed_points() {
+        // The reported bug: five exact points over one period of cos(x). Fitting the
+        // smoothed spline misses it (peaks flattened ~21%); fitting the knots nails
+        // it, because frequency-1 cos is one basis term.
+        let form = closed_form_of_knots(&typed(f64::cos, 0.0, 2.0 * PI, 5)).unwrap();
+        assert!(form.latex.contains("\\cos"), "{}", form.latex);
+        assert!(form.max_error < 1e-6, "max error {}", form.max_error);
+    }
+
+    #[test]
+    fn recovers_a_scaled_shifted_cosine_from_typed_points() {
+        let form = closed_form_of_knots(&typed(|x| 2.0 * x.cos() + 1.0, 0.0, 2.0 * PI, 9)).unwrap();
+        assert!(form.latex.contains("2\\cos"), "{}", form.latex);
+        assert!(form.latex.contains('1'), "{}", form.latex); // the +1 offset
+    }
+
+    #[test]
+    fn knots_path_stays_silent_for_random_points() {
+        // Three arbitrary points fit a 3-term basis exactly, but that is a tautology,
+        // not a discovery — the residual-degree-of-freedom guard must reject it.
+        let form = closed_form_of_knots(&[
+            Knot::new(0.0, 0.3),
+            Knot::new(1.0, 2.7),
+            Knot::new(2.0, -1.1),
+        ]);
+        assert!(form.is_none(), "{:?}", form.map(|f| f.latex));
+    }
+
+    #[test]
+    fn knots_path_stays_silent_for_a_squiggle() {
+        let form = closed_form_of_knots(&typed(
+            |x| 2.0 * (3.0 * x).sin() + (7.0 * x).cos(),
+            0.0,
+            2.0,
+            7,
+        ));
+        assert!(form.is_none(), "{:?}", form.map(|f| f.latex));
     }
 
     #[test]
