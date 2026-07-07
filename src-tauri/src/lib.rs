@@ -42,6 +42,13 @@ fn engine_version() -> String {
     curve_engine::engine_version().to_string()
 }
 
+/// The application's version, for the About dialog. Read from the app crate at
+/// compile time, so it always matches the released bundle.
+#[tauri::command]
+fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 /// Resample a raw drawn stroke, fit the shape-preserving spline in the core, and
 /// return it for rendering. Errors (as a message) when the stroke is not a valid
 /// function — e.g. fewer than two distinct points.
@@ -325,6 +332,7 @@ fn render(curve: &Curve) -> FittedCurve {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -337,6 +345,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             engine_version,
+            app_version,
             fit_curve,
             extend_curve,
             refit_curve,
@@ -355,6 +364,17 @@ mod tests {
         apply_calculus, curve_latex, extend_curve, fit_curve, open_curve, refit_curve, save_curve,
         CalcOp, KnotDto,
     };
+
+    #[test]
+    fn app_version_reads_the_crate_version() {
+        // The About dialog shows this; it must be a real version string.
+        let version = super::app_version();
+        assert!(
+            version.split('.').count() >= 2,
+            "expected a semver-like version, got {version:?}"
+        );
+        assert_eq!(version, env!("CARGO_PKG_VERSION"));
+    }
 
     #[test]
     fn fits_a_drawn_line() {

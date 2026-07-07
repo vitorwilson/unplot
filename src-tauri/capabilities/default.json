@@ -8,6 +8,13 @@
   "permissions": [
     "core:default",
     "dialog:allow-open",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://github.com/vitorwilson/unplot" },
+        { "url": "https://github.com/vitorwilson/unplot/issues" }
+      ]
+    }
   ]
 }

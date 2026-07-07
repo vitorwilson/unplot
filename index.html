@@ -56,7 +56,31 @@
         </button>
         <button id="open-btn" type="button">Open</button>
         <button id="save-btn" type="button">Save</button>
+        <button id="about-btn" type="button">About</button>
       </div>
+      <dialog id="about-dialog" class="about-dialog">
+        <h2 class="about-title">unplot <span id="about-version"></span></h2>
+        <p class="about-tagline">Draw a function; get the math.</p>
+        <nav class="about-links">
+          <a
+            id="about-repo"
+            href="https://github.com/vitorwilson/unplot"
+            target="_blank"
+            rel="noreferrer"
+            >License and Documentation</a
+          >
+          <a
+            id="about-issues"
+            href="https://github.com/vitorwilson/unplot/issues"
+            target="_blank"
+            rel="noreferrer"
+            >Report bugs</a
+          >
+        </nav>
+        <button id="about-close" class="about-close" type="button">
+          Close
+        </button>
+      </dialog>
       <section id="points-panel" class="points-panel">
         <button id="points-toggle" class="points-toggle" type="button"></button>
         <div id="points-body" class="points-body" hidden>

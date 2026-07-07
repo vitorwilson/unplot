@@ -1,6 +1,9 @@
 import "katex/dist/katex.min.css";
 // styles.css is loaded render-blocking via a <link> in index.html (avoids a
 // flash of unstyled layout on reload), so it is not imported here.
+import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { installAboutView } from "./about";
 import { canvasPixelSize } from "./dpr";
 import { installDrawing } from "./draw";
 import {
@@ -283,6 +286,31 @@ function installPointsControls(
   );
 }
 
+/** Wire the About button: open a modal with the app version and links to the
+ * project's repository (license + docs) and issue tracker (report bugs), both
+ * opened in the system browser. No-op if the dialog's DOM is missing. */
+function installAboutControls(): void {
+  const openButton = document.querySelector<HTMLButtonElement>("#about-btn");
+  const dialog = document.querySelector<HTMLDialogElement>("#about-dialog");
+  const version = document.querySelector<HTMLElement>("#about-version");
+  const closeButton = document.querySelector<HTMLButtonElement>("#about-close");
+  const links = [
+    document.querySelector<HTMLAnchorElement>("#about-repo"),
+    document.querySelector<HTMLAnchorElement>("#about-issues"),
+  ];
+  if (!openButton || !dialog || !version || !closeButton) {
+    return;
+  }
+  const resolved = links.filter((link): link is HTMLAnchorElement => !!link);
+  installAboutView(
+    { openButton, dialog, version, closeButton, links: resolved },
+    {
+      appVersion: () => invoke<string>("app_version"),
+      openExternal: (url) => openUrl(url),
+    },
+  );
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#plane");
 if (canvas) {
   const ctx = setupCanvas(canvas);
@@ -337,6 +365,7 @@ if (canvas) {
     syncPoints = points.syncFromCurve;
     points.syncFromCurve(currentCurve()); // seed the empty field
   }
+  installAboutControls();
 
   // Undo/redo: Ctrl/Cmd+Z, and Ctrl/Cmd+Shift+Z or Ctrl+Y to redo.
   window.addEventListener("keydown", (event) => {

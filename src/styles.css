@@ -97,7 +97,8 @@ h1 {
 #integral-btn,
 #calc-reset-btn,
 #open-btn,
-#save-btn {
+#save-btn,
+#about-btn {
   background: var(--panel);
   color: var(--ink);
   border: 1px solid var(--border);
@@ -111,7 +112,68 @@ h1 {
 #integral-btn:hover,
 #calc-reset-btn:hover,
 #open-btn:hover,
-#save-btn:hover {
+#save-btn:hover,
+#about-btn:hover {
+  border-color: var(--muted);
+}
+
+.about-dialog {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 1.5rem 1.75rem;
+  max-width: 22rem;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 25%);
+}
+
+.about-dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.about-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+#about-version {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.95rem;
+}
+
+.about-tagline {
+  margin: 0.35rem 0 1.1rem;
+  color: var(--muted);
+}
+
+.about-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.about-links a {
+  color: var(--accent, #1565c0);
+  text-decoration: none;
+}
+
+.about-links a:hover {
+  text-decoration: underline;
+}
+
+.about-close {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.about-close:hover {
   border-color: var(--muted);
 }
 

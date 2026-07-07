@@ -153,6 +153,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rational integral). The panel labels an exact result honestly (no "corners"
   note). The approximator now returns the recognized form as a structured
   expression that also renders to LaTeX and Wolfram.
+- About dialog: an "About" button opens a modal showing the app version (from the
+  `app_version` command) with links to the project's GitHub repository (license
+  and documentation) and its issue tracker (report bugs). The links open in the
+  system browser via the Tauri opener plugin, scoped in the app's capabilities to
+  just those two URLs, rather than navigating the app's own webview.
 
 ### Fixed
 
