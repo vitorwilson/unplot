@@ -1,0 +1,51 @@
+name: Bug report
+description: Something doesn't work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report! Please fill in what you can — a way to reproduce it helps the most.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: I drew / typed …, expected …, but got …
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: If you can, include the points you typed or a saved `.unplot` file.
+      placeholder: |
+        1. Open the app
+        2. Type points …
+        3. Click …
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: unplot version
+      description: From the About dialog.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, logs, or context.
+    validations:
+      required: false
