@@ -11,10 +11,27 @@ valid function by construction, not a guess. An optional layer will *also*
 suggest a compact closed form when your drawing really is a simple function —
 always shown with its error, never presented as exact.
 
-## Quickstart
+## Install
 
-> Desktop app for Windows, macOS, and Linux. Scaffolding is in progress
-> (Phase 0), so these commands come online as the app takes shape.
+Download the installer for your platform from the
+[latest release](https://github.com/vitorwilson/unplot/releases/latest):
+
+- **Windows** — `.msi` or `.exe`
+- **macOS** — `.dmg` (universal: Apple Silicon + Intel)
+- **Linux** — `.AppImage`, `.deb`, or `.rpm`
+
+The builds aren't code-signed yet, so your OS will warn about an unidentified
+developer the first time you open the app. To get past it:
+
+- **macOS** — right-click the app and choose **Open**, then **Open** again (only
+  needed once). If it still refuses, clear the quarantine flag:
+  `xattr -dr com.apple.quarantine /Applications/unplot.app`.
+- **Windows** — on the SmartScreen prompt, click **More info → Run anyway**.
+
+## Run from source
+
+Needs Rust, Node, and [pnpm](https://pnpm.io); [`just`](https://github.com/casey/just)
+runs the tasks.
 
 ```sh
 just dev     # run the desktop app
