@@ -29,10 +29,6 @@ jobs:
             args: ""
             rust-targets: ""
     runs-on: ${{ matrix.platform }}
-    env:
-      # Exposed at job level so the Windows signing step's `if` can test it;
-      # renders to an empty string when the secret is not set (then: no signing).
-      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,41 +70,13 @@ jobs:
             echo CHANGELOG_EOF
           } >> "$GITHUB_OUTPUT"
 
-      # Windows Authenticode signing: import the .pfx, then point the bundler at
-      # it by its thumbprint (not secret). Runs only when the certificate secret
-      # is present, so an unset secret simply produces an unsigned build.
-      - name: Configure Windows signing
-        if: matrix.platform == 'windows-latest' && env.WINDOWS_CERTIFICATE != ''
-        shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: |
-          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
-          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
-          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
-          Remove-Item $pfx
-          $configPath = 'src-tauri/tauri.conf.json'
-          $config = Get-Content $configPath -Raw | ConvertFrom-Json
-          $config.bundle.windows.certificateThumbprint = $cert.Thumbprint
-          $config | ConvertTo-Json -Depth 32 | Set-Content $configPath
-          Write-Host "Windows signing configured (thumbprint $($cert.Thumbprint))."
-
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Updater artifact signing (optional; harmless if unset).
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS code signing + notarization. tauri-action imports the
-          # Developer ID certificate and signs; the APPLE_* trio then notarizes.
-          # All unset → an unsigned macOS build, unchanged.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Builds are intentionally UNSIGNED — the project does not use paid
+          # code-signing certificates (see docs/RELEASE.md), so no Apple/Windows
+          # signing or notarization secrets are passed. Passing empty cert vars
+          # makes tauri-action attempt (and fail) signing, so they are omitted.
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "unplot ${{ github.ref_name }}"

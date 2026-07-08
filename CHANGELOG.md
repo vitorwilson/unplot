@@ -26,12 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   duplicated `horner` and trimming `symbolic.rs` under the 500-line cap),
   refreshed the stale engine crate doc, and aligned the crate license metadata
   with the MIT `LICENSE`.
-- Release pipeline is now signing-ready: the workflow imports a macOS Developer ID
-  certificate (`APPLE_CERTIFICATE`/`APPLE_CERTIFICATE_PASSWORD`/`APPLE_SIGNING_IDENTITY`,
-  then notarizes) and a Windows Authenticode `.pfx` (`WINDOWS_CERTIFICATE`,
-  imported and its thumbprint written into `tauri.conf.json` at build time), so
-  signing turns on by just setting the secrets. Unset secrets still produce
-  unsigned bundles, unchanged. Documented in `docs/RELEASE.md`.
 
 ### Fixed
 
