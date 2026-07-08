@@ -16,6 +16,11 @@ import {
 } from "./fit";
 import { installCalculusView, type CalculusController } from "./calculusView";
 import { openCurveDialog, saveCurveDialog } from "./files";
+import {
+  appWindow,
+  isFullscreenShortcut,
+  toggleFullscreen,
+} from "./fullscreen";
 import { tickStep, visibleGridLines } from "./grid";
 import { installLatexView, type LatexView } from "./latexView";
 import { installViewportControls } from "./navigate";
@@ -369,6 +374,15 @@ if (canvas) {
   }
   installAboutControls();
 
+  // Fullscreen: F11 (or ⌘⌃F on macOS). Desktop platforms — Windows especially —
+  // give the app no other way to go fullscreen, so unplot binds its own key.
+  window.addEventListener("keydown", (event) => {
+    if (isFullscreenShortcut(event)) {
+      event.preventDefault();
+      void toggleFullscreen(appWindow());
+    }
+  });
+
   // Undo/redo: Ctrl/Cmd+Z, and Ctrl/Cmd+Shift+Z or Ctrl+Y to redo.
   window.addEventListener("keydown", (event) => {
     if (!event.ctrlKey && !event.metaKey) {
@@ -395,6 +409,6 @@ if (canvas) {
   const hint = document.querySelector("#controls-hint");
   if (hint) {
     hint.textContent =
-      "Draw: left-drag · Edit: drag a dot or handle · Move: drag the curve · Undo: Ctrl+Z · Pan: two-finger · Zoom: pinch";
+      "Draw: left-drag · Edit: drag a dot or handle · Move: drag the curve · Undo: Ctrl+Z · Fullscreen: F11 · Pan: two-finger · Zoom: pinch";
   }
 }

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Fullscreen toggle bound to `F11` (or `⌘⌃F` on macOS). Desktop platforms —
+  Windows in particular — give an app no built-in way to go fullscreen, so
+  unplot binds its own key.
+
 ## [0.1.1] - 2026-07-07
 
 ### Added
