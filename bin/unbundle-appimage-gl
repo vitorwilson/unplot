@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# Strip the host-coupled GL/display libraries from a Tauri/linuxdeploy AppImage
+# and repack it, so at runtime they resolve to the user's own Mesa stack.
+#
+# WHY: linuxdeploy-plugin-gtk bundles the build machine's libwayland-*, libepoxy
+# (and sometimes libEGL/libGL/libgbm/libdrm) into the AppImage and puts them
+# ahead of the host's on the loader path. On a newer host, WebKitGTK's GPU
+# process calls eglGetPlatformDisplay, the host's Mesa libEGL is handed the
+# AppImage's foreign-build libwayland/libepoxy, the protocol handshake mismatches,
+# and it aborts before any window ever opens with:
+#     Could not create default EGL display: EGL_BAD_PARAMETER. Aborting...
+# These libraries are tied to the running kernel's DRM and Mesa, so they MUST come
+# from the host and can never be frozen in the bundle — the canonical AppImage
+# rule (see docs/linux-packaging.md). Removing them lets the loader fall through
+# to the host copies, fixing the crash while everything else (WebKit, GTK,
+# GStreamer) stays bundled. No env var (WEBKIT_DISABLE_DMABUF_RENDERER etc.) can
+# fix it — the abort is upstream of any renderer choice.
+#
+# Usage: bin/unbundle-appimage-gl <path/to/app.AppImage> [output.AppImage]
+#   With no output path, the input AppImage is patched in place.
+#
+# Requires: mksquashfs (squashfs-tools). Uses the AppImage's own runtime via
+# --appimage-extract / --appimage-offset, so no FUSE is needed (works in CI).
+set -euo pipefail
+
+# Basename prefixes of the libraries that must resolve to the host's, not the
+# bundle's. libwayland-* + libepoxy are the ones that actually trigger the
+# EGL_BAD_PARAMETER abort on this project's AppImage; the rest are pruned
+# defensively in case a future build base bundles them too — every entry here is
+# kernel-DRM/Mesa-coupled and unsafe to ship frozen.
+host_coupled_lib_globs() {
+  cat <<'EOF'
+libwayland-client.so
+libwayland-cursor.so
+libwayland-egl.so
+libwayland-server.so
+libepoxy.so
+libEGL.so
+libGL.so
+libGLX.so
+libGLdispatch.so
+libGLESv1_CM.so
+libGLESv2.so
+libOpenGL.so
+libgbm.so
+libdrm.so
+libgallium
+libglapi.so
+EOF
+}
+
+# Remove every host-coupled library from an extracted AppImage's lib directory.
+# Prints each removed basename and echoes the count on stdout's last line. Safe
+# to call when none are present (returns a count of 0).
+prune_host_gl_libs() {
+  local libdir="$1"
+  [[ -d "$libdir" ]] || { echo "prune_host_gl_libs: not a directory: $libdir" >&2; return 2; }
+  local removed=0 glob f
+  while IFS= read -r glob; do
+    [[ -n "$glob" ]] || continue
+    for f in "$libdir/$glob"*; do
+      [[ -e "$f" ]] || continue # unmatched glob stays literal; skip it
+      echo "  removed $(basename "$f")"
+      rm -f "$f"
+      removed=$((removed + 1))
+    done
+  done < <(host_coupled_lib_globs)
+  echo "$removed"
+}
+
+# Best-effort: match the input's squashfs compressor so the repack stays small.
+# Falls back to gzip, which the AppImage runtime always supports.
+detect_squashfs_comp() {
+  local input="$1" offset="$2" comp=""
+  if command -v unsquashfs >/dev/null 2>&1; then
+    comp="$(unsquashfs -o "$offset" -s "$input" 2>/dev/null \
+      | sed -nE 's/^Compression[[:space:]]+([a-z0-9]+).*/\1/p' | head -1)"
+  fi
+  [[ -n "$comp" ]] && echo "$comp" || echo "gzip"
+}
+
+main() {
+  local input="${1:?usage: bin/unbundle-appimage-gl <app.AppImage> [output.AppImage]}"
+  local output="${2:-$input}"
+
+  command -v mksquashfs >/dev/null 2>&1 ||
+    { echo "error: mksquashfs not found — install squashfs-tools" >&2; exit 1; }
+  [[ -f "$input" ]] || { echo "error: no such AppImage: $input" >&2; exit 1; }
+  input="$(cd "$(dirname "$input")" && pwd)/$(basename "$input")" # absolutize
+
+  local offset
+  offset="$("$input" --appimage-offset 2>/dev/null || true)"
+  [[ "$offset" =~ ^[0-9]+$ ]] ||
+    { echo "error: not a type-2 AppImage (no --appimage-offset): $input" >&2; exit 1; }
+
+  local workdir; workdir="$(mktemp -d)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$workdir'" EXIT
+  ( cd "$workdir" && "$input" --appimage-extract >/dev/null )
+  local root="$workdir/squashfs-root"
+  [[ -d "$root" ]] || { echo "error: extraction produced no squashfs-root" >&2; exit 1; }
+
+  echo "unbundle-appimage-gl: pruning host-coupled GL/display libraries…"
+  local total=0 dir count
+  # Bundled libs may sit in usr/lib and/or usr/lib/<multiarch>.
+  for dir in "$root"/usr/lib "$root"/usr/lib/*-linux-gnu; do
+    [[ -d "$dir" ]] || continue
+    count="$(prune_host_gl_libs "$dir" | tail -1)"
+    total=$((total + count))
+  done
+  [[ "$total" -gt 0 ]] ||
+    echo "  (warning: no host-coupled libraries found — bundle layout may have changed)"
+
+  # Repack: reuse the AppImage's own runtime header (the first <offset> bytes) so
+  # the result is a valid AppImage of the same type, then append a fresh squashfs.
+  local runtime="$workdir/runtime" sqfs="$workdir/fs.squashfs" comp
+  head -c "$offset" "$input" > "$runtime"
+  comp="$(detect_squashfs_comp "$input" "$offset")"
+  mksquashfs "$root" "$sqfs" -root-owned -noappend -no-progress -comp "$comp" >/dev/null
+  cat "$runtime" "$sqfs" > "$output.tmp"
+  chmod +x "$output.tmp"
+  mv -f "$output.tmp" "$output"
+  echo "unbundle-appimage-gl: wrote $output ($(du -h "$output" | cut -f1), pruned $total libs, comp=$comp)"
+}
+
+# Only run main when executed directly, so the test can source this file to reach
+# the functions above without triggering a repack.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

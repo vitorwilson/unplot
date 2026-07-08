@@ -17,10 +17,14 @@ build:
 web:
     pnpm build
 
-# Run the full test suite: Rust core + frontend.
-test: web
+# Run the full test suite: Rust core + frontend + packaging scripts.
+test: web test-scripts
     cargo test
     pnpm test
+
+# Unit-test the packaging helper scripts (bin/*.test.sh).
+test-scripts:
+    bash bin/unbundle-appimage-gl.test.sh
 
 # Lint everything: clippy (warnings as errors) + eslint.
 lint: web

@@ -39,7 +39,10 @@ Download the installer for your platform from the
 
 - **Windows** — `.msi` or `.exe`
 - **macOS** — `.dmg` (universal: Apple Silicon + Intel)
-- **Linux** — `.AppImage`, `.deb`, or `.rpm`
+- **Linux** — `.deb` (Debian/Ubuntu), `.rpm` (Fedora), or `.AppImage` (any
+  distro). On rolling-release distros the `.deb`/`.rpm` are the most robust
+  because they use your system's WebKitGTK — see
+  [docs/linux-packaging.md](docs/linux-packaging.md) if an AppImage won't start.
 
 The builds aren't code-signed yet, so your OS will warn about an unidentified
 developer the first time you open the app. To get past it:

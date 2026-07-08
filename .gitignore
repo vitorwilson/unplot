@@ -19,3 +19,9 @@ config/*.env
 *.log
 .DS_Store
 Thumbs.db
+
+# Stray bundle artifacts in the repo root (the real ones are built under target/)
+/*.AppImage
+/*.deb
+/*.rpm
+/*.dmg

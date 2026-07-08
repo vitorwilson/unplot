@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Open-source project files ahead of going public: `LICENSE` (MIT),
   `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, GitHub issue/PR
   templates, and a rewritten `README.md` with a demo video and feature list.
+- `bin/unbundle-appimage-gl` (with a unit test) and `docs/linux-packaging.md`:
+  the release pipeline now strips the host-coupled GL/display libraries
+  (`libwayland-*`, `libepoxy`, …) from the Linux `.AppImage` and repacks it, so
+  the bundle uses the user's Mesa stack. The script also patches an existing
+  download in place.
 
 ### Changed
 
@@ -28,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Linux `.AppImage` no longer aborts at startup with `Could not create
+  default EGL display: EGL_BAD_PARAMETER` on modern Mesa/Wayland systems. The
+  bundle shipped the build machine's `libwayland-*`/`libepoxy`, which shadowed
+  the host's copies and broke WebKitGTK's EGL initialization; the pipeline now
+  removes them so they resolve to the running system (no `WEBKIT_*` env var could
+  fix it — the abort is upstream of any renderer choice).
 - `closed_form_of_knots` no longer panics on fewer than two knots — a public
   entry point returns `None` instead.
 - The About dialog's external links no longer risk an unhandled promise
