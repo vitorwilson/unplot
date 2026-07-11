@@ -56,9 +56,10 @@ an individual is officially representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-**105898142+vitorwilson@users.noreply.github.com**. All complaints will be reviewed and investigated
-promptly and fairly.
+reported to the community leaders responsible for enforcement through GitHub's
+[private vulnerability reporting](https://github.com/vitorwilson/unplot/security/advisories/new)
+(the **Security → Report a vulnerability** button on the repository). All
+complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
 reporter of any incident.

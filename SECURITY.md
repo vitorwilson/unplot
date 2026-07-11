@@ -12,8 +12,7 @@ version before reporting.
 
 Report privately through GitHub's
 [private vulnerability reporting](https://github.com/vitorwilson/unplot/security/advisories/new)
-(the **Security → Report a vulnerability** button on the repository). If you
-can't use that, email **105898142+vitorwilson@users.noreply.github.com** with the details.
+(the **Security → Report a vulnerability** button on the repository).
 
 Please include:
 
