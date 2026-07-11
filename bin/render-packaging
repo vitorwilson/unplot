@@ -2,7 +2,7 @@
 # Render the downstream packaging manifests (AUR PKGBUILD, Homebrew cask) from the
 # templates under packaging/, substituting the release version and the real asset
 # checksums. This is the single source of truth for both the release pipeline
-# (.github/workflows/packaging.yml) and the one-time bootstrap (docs/packaging.md),
+# (.github/workflows/packaging.yml) and the one-time bootstrap,
 # so a rendered manifest is produced the same way everywhere.
 #
 # Usage:

@@ -53,8 +53,7 @@ Download the installer for your platform from the
 - **Arch Linux (AUR)** — `yay -S unplot-bin` (or any AUR helper). It repackages
   the `.deb`, so it uses your system's WebKitGTK.
 
-Both are built from the same release artifacts — see
-[docs/packaging.md](docs/packaging.md).
+Both are built from the same release artifacts.
 
 The builds aren't code-signed yet, so your OS will warn about an unidentified
 developer the first time you open the app. To get past it:

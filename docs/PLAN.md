@@ -309,12 +309,12 @@ gracefully to the exact piecewise output with no false promises.
   Never by hand.
 - [x] Signing certs / notarization creds via gitignored config; never committed.
   **✓ Shipped** — GitHub Actions secrets mirror `config/deploy.env.example`; the
-  workflow passes them to `tauri-action` (see `docs/RELEASE.md`).
+  workflow passes them to `tauri-action`.
 
 **Done when:** pushing `vX.Y.Z` produces signed, installable builds for all three
 platforms. *The pipeline is in place and produces installable bundles; code
 signing and macOS notarization activate once the signing secrets are configured
-in the repo (docs/RELEASE.md).*
+in the repo.*
 
 ---
 

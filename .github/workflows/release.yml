@@ -2,7 +2,7 @@ name: Release
 
 # Triggered only by a version tag (pushed by bin/deploy), never by hand. Builds
 # the signed Tauri bundles on each platform and attaches them to a draft GitHub
-# Release whose body is the tag's CHANGELOG section (docs/RELEASE.md).
+# Release whose body is the tag's CHANGELOG section.
 on:
   push:
     tags:
@@ -74,7 +74,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Builds are intentionally UNSIGNED — the project does not use paid
-          # code-signing certificates (see docs/RELEASE.md), so no Apple/Windows
+          # code-signing certificates, so no Apple/Windows
           # signing or notarization secrets are passed. Passing empty cert vars
           # makes tauri-action attempt (and fail) signing, so they are omitted.
         with:

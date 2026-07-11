@@ -7,12 +7,12 @@ name: Packaging
 # Flow: bin/deploy tags vX.Y.Z -> release.yml builds a DRAFT GitHub Release ->
 # the maintainer publishes the draft. Publishing is what fires `release:
 # published`, by which point every bundle asset is attached and downloadable, so
-# there is no asset-upload race. The one-time bootstrap (AUR account + tap repo)
-# and the two required secrets are documented in docs/packaging.md.
+# there is no asset-upload race. A one-time bootstrap (AUR account + tap repo) and
+# two required secrets set it up.
 #
 # NOTE: `release: published` only fires for releases published AFTER this file
 # lands on the default branch. The already-published v0.1.2 is bootstrapped by
-# hand (docs/packaging.md); use the workflow_dispatch input to re-run manually.
+# hand; use the workflow_dispatch input to re-run manually.
 on:
   release:
     types: [published]
@@ -74,7 +74,7 @@ jobs:
     needs: checksums
     runs-on: ubuntu-latest
     # Gate behind the 'publish' environment (required reviewer): the AUR key is
-    # only exposed to the runner after a human approves the run. See docs/packaging.md.
+    # only exposed to the runner after a human approves the run.
     environment: publish
     steps:
       - uses: actions/checkout@v4
@@ -111,7 +111,7 @@ jobs:
     needs: checksums
     runs-on: ubuntu-latest
     # Gate behind the 'publish' environment (required reviewer): the tap PAT is
-    # only exposed to the runner after a human approves the run. See docs/packaging.md.
+    # only exposed to the runner after a human approves the run.
     environment: publish
     steps:
       - name: Check out unplot (cask template + render script)

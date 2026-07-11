@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Cut a release. Validates the repo, then tags vX.Y.Z and pushes it — the tag is
 # what triggers the release workflow, which builds, signs, packages, and
-# publishes. Releases are never built or published by hand (docs/RELEASE.md).
+# publishes. Releases are never built or published by hand.
 #
-# Prep before running (see docs/RELEASE.md): bump the version in the three
+# Prep before running: bump the version in the three
 # manifests, promote CHANGELOG.md's [Unreleased] section to [X.Y.Z], and commit.
 #
 # Usage: bin/deploy [-y]      (-y skips the confirmation prompt)

@@ -48,6 +48,6 @@ audit:
     pnpm audit --audit-level high
 
 # Cut a release: validate, tag vX.Y.Z, and push (triggers the signed-build
-# pipeline). See docs/RELEASE.md for the prep steps.
+# pipeline).
 release:
     bin/deploy
