@@ -1,0 +1,43 @@
+# GENERATED from packaging/homebrew/unplot.rb.tmpl in github.com/vitorwilson/unplot
+# by `bin/render-packaging cask`. Do not edit the tap copy by hand — edit the
+# template and re-render. The release pipeline pushes updates automatically; see
+# docs/packaging.md. The version and the dmg checksum are filled in at render time.
+cask "unplot" do
+  version "__VERSION__"
+  sha256 "__DMG_SHA256__"
+
+  # The release tag is `v#{version}`, but the asset filename has no leading `v`.
+  url "https://github.com/vitorwilson/unplot/releases/download/v#{version}/unplot_#{version}_universal.dmg"
+  name "unplot"
+  desc "Draw a function by hand and recover its exact formula as LaTeX"
+  homepage "https://github.com/vitorwilson/unplot"
+
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
+  # No self-updater in this build, so auto_updates is left at its default (false).
+  app "unplot.app"
+
+  zap trash: [
+    "~/Library/Application Support/com.unplot.app",
+    "~/Library/Caches/com.unplot.app",
+    "~/Library/HTTPStorages/com.unplot.app",
+    "~/Library/Preferences/com.unplot.app.plist",
+    "~/Library/Saved Application State/com.unplot.app.savedState",
+    "~/Library/WebKit/com.unplot.app",
+  ]
+
+  # unplot is intentionally unsigned and unnotarized (the project uses no paid
+  # certificates). Homebrew quarantines every cask on install, so on first launch
+  # macOS — Apple Silicon especially — reports "unplot.app is damaged and can't be
+  # opened". That is Gatekeeper reacting to the missing signature, not a bad
+  # download; clearing the quarantine flag once is the reliable fix.
+  caveats <<~EOS
+    unplot is not code-signed or notarized. After installing, clear the
+    quarantine attribute once, then open it normally:
+
+      xattr -dr com.apple.quarantine "/Applications/unplot.app"
+  EOS
+end

@@ -1,0 +1,151 @@
+name: Packaging
+
+# Refresh the downstream package manifests after a release is PUBLISHED:
+#   - the AUR `unplot-bin` package (repackages the .deb)
+#   - the Homebrew cask in the vitorwilson/homebrew-unplot tap (the .dmg)
+#
+# Flow: bin/deploy tags vX.Y.Z -> release.yml builds a DRAFT GitHub Release ->
+# the maintainer publishes the draft. Publishing is what fires `release:
+# published`, by which point every bundle asset is attached and downloadable, so
+# there is no asset-upload race. The one-time bootstrap (AUR account + tap repo)
+# and the two required secrets are documented in docs/packaging.md.
+#
+# NOTE: `release: published` only fires for releases published AFTER this file
+# lands on the default branch. The already-published v0.1.2 is bootstrapped by
+# hand (docs/packaging.md); use the workflow_dispatch input to re-run manually.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to (re)publish packages for, e.g. v0.1.2"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Download the release assets ONCE and expose their checksums as job outputs,
+  # so the AUR and Homebrew jobs reuse the same version + sums (compute once, DRY).
+  checksums:
+    name: Compute release checksums
+    runs-on: ubuntu-latest
+    if: github.repository == 'vitorwilson/unplot'
+    outputs:
+      version: ${{ steps.sums.outputs.version }}
+      deb_sha256: ${{ steps.sums.outputs.deb_sha256 }}
+      dmg_sha256: ${{ steps.sums.outputs.dmg_sha256 }}
+      license_sha256: ${{ steps.sums.outputs.license_sha256 }}
+    steps:
+      - name: Download the .deb + .dmg and hash them (plus the tag's LICENSE)
+        id: sums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # On a release event this is the release tag; on manual dispatch it is
+          # the supplied input. One of the two is always set.
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          [ -n "$TAG" ] || { echo "no release tag resolved" >&2; exit 1; }
+          version="${TAG#v}"
+          # Fail closed on an unexpected tag: `version` is echoed to GITHUB_OUTPUT
+          # and consumed by downstream jobs, so reject anything that is not a plain
+          # X.Y.Z before it can reach a shell or a rendered manifest.
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+            { echo "unexpected version '$version' from tag '$TAG'" >&2; exit 1; }
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern "unplot_${version}_amd64.deb" \
+            --pattern "unplot_${version}_universal.dmg"
+          # The AUR package installs the MIT LICENSE fetched from the tag, so hash
+          # the exact bytes the PKGBUILD downloads — the checksum must match them.
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${TAG}/LICENSE" -o dist/LICENSE
+          {
+            echo "version=$version"
+            echo "deb_sha256=$(sha256sum "dist/unplot_${version}_amd64.deb" | cut -d' ' -f1)"
+            echo "dmg_sha256=$(sha256sum "dist/unplot_${version}_universal.dmg" | cut -d' ' -f1)"
+            echo "license_sha256=$(sha256sum dist/LICENSE | cut -d' ' -f1)"
+          } >> "$GITHUB_OUTPUT"
+
+  # Render the PKGBUILD with the real sums, then push it to the AUR. The action
+  # regenerates .SRCINFO itself (makepkg --printsrcinfo) before committing.
+  aur-publish:
+    name: Publish unplot-bin to the AUR
+    needs: checksums
+    runs-on: ubuntu-latest
+    # Gate behind the 'publish' environment (required reviewer): the AUR key is
+    # only exposed to the runner after a human approves the run. See docs/packaging.md.
+    environment: publish
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render PKGBUILD
+        env:
+          # Pass job outputs through env (never inline ${{ }} into the shell) so a
+          # crafted release tag cannot inject commands into this run block.
+          VERSION: ${{ needs.checksums.outputs.version }}
+          DEB_SHA256: ${{ needs.checksums.outputs.deb_sha256 }}
+          LICENSE_SHA256: ${{ needs.checksums.outputs.license_sha256 }}
+        run: |
+          bin/render-packaging pkgbuild "$VERSION" "$DEB_SHA256" "$LICENSE_SHA256" > PKGBUILD
+          cat PKGBUILD
+      - name: Deploy to the AUR
+        # Third-party action pinned to the immutable commit for v4.1.3: it receives
+        # the AUR private key, so a moved tag would be a supply-chain compromise
+        # (cf. tj-actions/changed-files, CVE-2025-30066). Re-verify the SHA on bump.
+        uses: KSXGitHub/github-actions-deploy-aur@da03e160361ce01bf087e790b6ffd196d7dccff7 # v4.1.3
+        with:
+          pkgname: unplot-bin
+          pkgbuild: ./PKGBUILD
+          commit_username: Vitor Wilson
+          commit_email: 105898142+vitorwilson@users.noreply.github.com
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "unplot-bin ${{ needs.checksums.outputs.version }}"
+          ssh_keyscan_types: rsa,ecdsa,ed25519
+          # Real sha256sums are already rendered into the PKGBUILD by the shared
+          # checksums job, so no in-container recompute is needed.
+          updpkgsums: false
+
+  # Render the cask with the real .dmg sum and push it to the personal tap repo.
+  tap-publish:
+    name: Publish cask to the Homebrew tap
+    needs: checksums
+    runs-on: ubuntu-latest
+    # Gate behind the 'publish' environment (required reviewer): the tap PAT is
+    # only exposed to the runner after a human approves the run. See docs/packaging.md.
+    environment: publish
+    steps:
+      - name: Check out unplot (cask template + render script)
+        uses: actions/checkout@v4
+      - name: Render the cask
+        env:
+          VERSION: ${{ needs.checksums.outputs.version }}
+          DMG_SHA256: ${{ needs.checksums.outputs.dmg_sha256 }}
+        run: |
+          bin/render-packaging cask "$VERSION" "$DMG_SHA256" > unplot.rb
+          cat unplot.rb
+      - name: Check out the tap repo (cross-repo, via fine-grained PAT)
+        uses: actions/checkout@v4
+        with:
+          repository: vitorwilson/homebrew-unplot
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Commit and push the updated cask
+        working-directory: tap
+        env:
+          VERSION: ${{ needs.checksums.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p Casks
+          cp ../unplot.rb Casks/unplot.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/unplot.rb
+          # Compare the index against HEAD (not the work tree): `git diff` ignores
+          # untracked files, so a brand-new cask in a fresh tap would look like
+          # "no change" and be silently skipped. Staging first covers that case.
+          if git diff --cached --quiet; then
+            echo "cask already at $VERSION; nothing to push"
+            exit 0
+          fi
+          git commit -m "unplot $VERSION"
+          git push

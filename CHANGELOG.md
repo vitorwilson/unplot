@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Package-manager installs: a Homebrew cask
+  (`brew install --cask vitorwilson/unplot/unplot`, in the
+  `vitorwilson/homebrew-unplot` tap) and an AUR `unplot-bin` package
+  (`paru -S unplot-bin`). Both repackage the existing release artifacts (the
+  universal `.dmg` and the `.deb`), are rendered from templates under
+  `packaging/` by `bin/render-packaging`, and are auto-published on release by
+  `.github/workflows/packaging.yml`. See [`docs/packaging.md`](docs/packaging.md).
+
 ## [0.1.2] - 2026-07-07
 
 ### Added

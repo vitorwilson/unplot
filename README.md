@@ -44,6 +44,18 @@ Download the installer for your platform from the
   because they use your system's WebKitGTK — see
   [docs/linux-packaging.md](docs/linux-packaging.md) if an AppImage won't start.
 
+### Package managers
+
+- **macOS (Homebrew)** — `brew install --cask vitorwilson/unplot/unplot`. Because
+  the app is unsigned, clear the quarantine flag once after installing:
+  `xattr -dr com.apple.quarantine /Applications/unplot.app` (the cask prints this
+  reminder too).
+- **Arch Linux (AUR)** — `yay -S unplot-bin` (or any AUR helper). It repackages
+  the `.deb`, so it uses your system's WebKitGTK.
+
+Both are built from the same release artifacts — see
+[docs/packaging.md](docs/packaging.md).
+
 The builds aren't code-signed yet, so your OS will warn about an unidentified
 developer the first time you open the app. To get past it:
 

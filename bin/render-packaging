@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Render the downstream packaging manifests (AUR PKGBUILD, Homebrew cask) from the
+# templates under packaging/, substituting the release version and the real asset
+# checksums. This is the single source of truth for both the release pipeline
+# (.github/workflows/packaging.yml) and the one-time bootstrap (docs/packaging.md),
+# so a rendered manifest is produced the same way everywhere.
+#
+# Usage:
+#   bin/render-packaging pkgbuild VERSION DEB_SHA256 LICENSE_SHA256   > PKGBUILD
+#   bin/render-packaging cask     VERSION DMG_SHA256                  > Casks/unplot.rb
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+fail() {
+  echo "render-packaging: $1" >&2
+  exit 1
+}
+
+# A wrong checksum ships a broken package, so reject anything that is not exactly
+# 64 lowercase hex chars (e.g. a filename, an empty arg, or an uppercase digest).
+require_sha256() {
+  [[ "$1" =~ ^[0-9a-f]{64}$ ]] || fail "not a sha256: '$1' (expected 64 lowercase hex chars)"
+}
+
+require_version() {
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "not a version: '$1' (expected X.Y.Z)"
+}
+
+# Print the substituted template, but only after asserting every placeholder was
+# filled — a leftover __NAME__ means a missing argument and a broken manifest.
+emit() {
+  local rendered
+  rendered="$(cat)"
+  # `grep -q` in an `if` test is exempt from set -e, so a clean template (no
+  # match, exit 1) does not abort the script — only a real leftover fails here.
+  # The class MUST include digits: the checksum placeholders (__DEB_SHA256__ etc.)
+  # contain "256", so a digit-less [A-Z_] would silently skip exactly the fields
+  # whose corruption ships a broken package.
+  if grep -qE '__[A-Z0-9_]+__' <<<"$rendered"; then
+    local leftover
+    leftover="$(grep -oE '__[A-Z0-9_]+__' <<<"$rendered" | sort -u | tr '\n' ' ')"
+    fail "unsubstituted placeholders remain: $leftover"
+  fi
+  printf '%s\n' "$rendered"
+}
+
+render_pkgbuild() {
+  local version="$1" deb_sha="$2" license_sha="$3"
+  require_version "$version"
+  require_sha256 "$deb_sha"
+  require_sha256 "$license_sha"
+  sed -e "s/__PKGVER__/$version/g" \
+    -e "s/__DEB_SHA256__/$deb_sha/g" \
+    -e "s/__LICENSE_SHA256__/$license_sha/g" \
+    packaging/aur/PKGBUILD.tmpl | emit
+}
+
+render_cask() {
+  local version="$1" dmg_sha="$2"
+  require_version "$version"
+  require_sha256 "$dmg_sha"
+  sed -e "s/__VERSION__/$version/g" \
+    -e "s/__DMG_SHA256__/$dmg_sha/g" \
+    packaging/homebrew/unplot.rb.tmpl | emit
+}
+
+target="${1:-}"
+case "$target" in
+  pkgbuild)
+    [[ $# -eq 4 ]] || fail "usage: render-packaging pkgbuild VERSION DEB_SHA256 LICENSE_SHA256"
+    render_pkgbuild "$2" "$3" "$4"
+    ;;
+  cask)
+    [[ $# -eq 3 ]] || fail "usage: render-packaging cask VERSION DMG_SHA256"
+    render_cask "$2" "$3"
+    ;;
+  *)
+    fail "unknown target '$target' (expected 'pkgbuild' or 'cask')"
+    ;;
+esac

@@ -25,6 +25,7 @@ test: web test-scripts
 # Unit-test the packaging helper scripts (bin/*.test.sh).
 test-scripts:
     bash bin/unbundle-appimage-gl.test.sh
+    bash bin/render-packaging.test.sh
 
 # Lint everything: clippy (warnings as errors) + eslint.
 lint: web

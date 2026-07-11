@@ -1,0 +1,57 @@
+# Maintainer: Vitor Wilson <105898142+vitorwilson@users.noreply.github.com>
+#
+# GENERATED from packaging/aur/PKGBUILD.tmpl in github.com/vitorwilson/unplot by
+# `bin/render-packaging pkgbuild`. Do not edit the AUR copy by hand — edit the
+# template and re-render. The release pipeline pushes updates automatically; see
+# docs/packaging.md. The version and the release checksums are filled in at
+# render time.
+pkgname=unplot-bin
+pkgver=__PKGVER__
+pkgrel=1
+pkgdesc='Draw a function y=f(x) by hand; unplot recovers the exact curve as LaTeX and differentiates or integrates it'
+arch=('x86_64')
+url='https://github.com/vitorwilson/unplot'
+license=('MIT')
+# The .deb declares Depends: libwebkit2gtk-4.1-0, libgtk-3-0 -> webkit2gtk-4.1,
+# gtk3. gtk3 is transitively pulled by webkit2gtk-4.1, but the binary links
+# libgtk-3 directly, so it is declared explicitly. hicolor-icon-theme owns the
+# /usr/share/icons/hicolor tree the package drops icons into.
+depends=('webkit2gtk-4.1' 'gtk3' 'hicolor-icon-theme')
+provides=("unplot=$pkgver")
+conflicts=('unplot')
+options=('!strip' '!debug') # the payload is a prebuilt, vendored binary
+source=("$pkgname-$pkgver.deb::$url/releases/download/v$pkgver/unplot_${pkgver}_amd64.deb"
+        "LICENSE-$pkgver::https://raw.githubusercontent.com/vitorwilson/unplot/v$pkgver/LICENSE")
+# The .deb is an `ar` archive; unpack it ourselves in package() rather than
+# relying on makepkg's ar handling, and leave the plain-text LICENSE alone.
+noextract=("$pkgname-$pkgver.deb")
+sha256sums=('__DEB_SHA256__'
+            '__LICENSE_SHA256__')
+
+package() {
+  cd "$srcdir"
+
+  # A .deb is debian-binary + control.tar.* + data.tar.*. Two bsdtar passes:
+  # unwrap the ar, then lay the data payload into $pkgdir. bsdtar ships with
+  # libarchive (a pacman dependency) and reads gz/xz/zst transparently, so the
+  # .deb's data compression is free to change. `data.tar*` (no dot before the
+  # glob) also matches an uncompressed `data.tar`.
+  bsdtar -xf "$pkgname-$pkgver.deb"
+  bsdtar -xf data.tar* -C "$pkgdir"
+
+  # The .deb ships no license text and MIT is not in /usr/share/licenses/common,
+  # so install the copy fetched from the release tag.
+  install -Dm644 "LICENSE-$pkgver" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+  # Add a friendlier terminal command: `unplot` -> the packaged `unplot-app`
+  # binary. The .desktop Exec/Icon/StartupWMClass still reference unplot-app, so
+  # desktop launching is unaffected; conflicts=('unplot') guards the name.
+  ln -s unplot-app "$pkgdir/usr/bin/unplot"
+
+  # Upstream's unplot.desktop ships an empty `Categories=` key, which
+  # desktop-file-validate (run by namcap) flags; drop the empty key.
+  sed -i '/^Categories=$/d' "$pkgdir/usr/share/applications/unplot.desktop"
+}
+
+# No .install file: since desktop-file-utils 0.22-2 and gtk-update-icon-cache
+# 3.20.3-2 the desktop-database and icon-cache refreshes run via pacman hooks.
